@@ -1,0 +1,59 @@
+# Publishes to PyPI when a GitHub release is published (tag vX.Y.Z).
+# Uses PyPI trusted publishing: no API token is stored in GitHub.
+# One-time setup on pypi.org: add a trusted publisher for this repository,
+# workflow "publish.yml", environment "pypi".
+
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Tests that need a model server skip themselves when none is running.
+      - run: uv run --frozen pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Check the release tag matches the package version
+        if: github.event_name == 'release'
+        run: |
+          version=$(uv version --short)
+          test "${GITHUB_REF_NAME}" = "v${version}" || {
+            echo "Tag ${GITHUB_REF_NAME} does not match pyproject version ${version}"; exit 1; }
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/stunt-double
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

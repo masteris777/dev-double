@@ -21,6 +21,8 @@ from .transport import (
     ClassifyResponse,
     DecideRequest,
     DecideResponse,
+    ExtractRequest,
+    ExtractResponse,
     GateRequest,
     GateResponse,
     GuardRequest,
@@ -105,6 +107,11 @@ def create_app(
     async def judge(req: JudgeRequest, request: Request):  # type: ignore[no-untyped-def]
         """Score an LLM output against a rubric."""
         return JudgeResponse.from_core(await service(request).judge(req.to_core()))
+
+    @app.post("/v1/extract", response_model=ExtractResponse, response_model_exclude_none=True)
+    async def extract(req: ExtractRequest, request: Request):  # type: ignore[no-untyped-def]
+        """Pull typed fields out of text: invoices, tickets, bookings, tool-call arguments."""
+        return ExtractResponse.from_core(await service(request).extract(req.to_core()))
 
     @app.post("/v1/rerank", response_model=RerankResponse, response_model_exclude_none=True)
     @app.post("/v2/rerank", response_model=RerankResponse, response_model_exclude_none=True)

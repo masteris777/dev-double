@@ -59,6 +59,7 @@ No model server yet? `stunt-double serve --engine mock` answers from word overla
 | `POST /v1/classify` | Inbox triage, intent detection, bulk labeling (`inputs: [...]`) | per item: `label`, `probabilities`, `confidence` |
 | `POST /v1/judge` | LLM evals: score an output against a rubric | `score`, `normalized`, `level`, `probabilities` |
 | `POST /v1/rerank` | Order documents by relevance (Cohere-style format, also `/v2/rerank`) | `results: [{index, relevance_score}]` |
+| `POST /v1/extract` | Pull typed fields out of text: invoices, tickets, bookings, tool-call arguments | `values`, per-field `value` and `confidence` |
 
 Every response carries `meta`: engine, model, latency, token usage, and `warnings`, which tell you when an answer is less trustworthy than usual.
 
@@ -107,6 +108,41 @@ Three question types cover every use case above:
 
 Questions in one request run in parallel.
 
+### `/v1/extract`: typed fields
+
+Fields are `string`, `number`, `integer`, `boolean`, or `enum` (with `options`: a list, or option -> description). Up to 30 fields:
+
+```json
+{
+  "input": "Invoice #2291 from Acme Corp. Amount due: 1.200,00 EUR by 1 October 2026. Status: unpaid.",
+  "fields": {
+    "vendor":    {"type": "string",  "description": "Company that issued the invoice."},
+    "total":     {"type": "number",  "description": "Amount due, without currency symbol."},
+    "due_date":  {"type": "string",  "description": "Due date as YYYY-MM-DD."},
+    "po_number": {"type": "string",  "description": "Purchase order number."},
+    "currency":  {"type": "enum",    "options": ["EUR", "USD", "GBP"]},
+    "paid":      {"type": "boolean", "description": "Whether the invoice is already paid."}
+  }
+}
+```
+
+```json
+{
+  "values": {"vendor": "Acme Corp", "total": 1200.0, "due_date": "2026-10-01", "po_number": null, "currency": "EUR", "paid": false},
+  "fields": {
+    "vendor":    {"value": "Acme Corp", "confidence": 0.99},
+    "total":     {"value": 1200.0, "confidence": 0.99},
+    "due_date":  {"value": "2026-10-01", "confidence": 0.98},
+    "po_number": {"value": null, "confidence": 0.97},
+    "currency":  {"value": "EUR", "confidence": 0.95, "probabilities": {"EUR": 0.97, "USD": 0.02, "GBP": 0.01}},
+    "paid":      {"value": false, "confidence": 0.8, "probability": 0.1}
+  },
+  "meta": {"...": "..."}
+}
+```
+
+`value` is `null` when the input doesn't contain the field. Enum fields add `probabilities`; boolean fields add `probability` (of true). Numbers are read tolerantly (`$1,200.50`, `1.200,50 EUR`). Fields run in parallel.
+
 ### Confidence gates
 
 Decide the thresholds in code, not in a prompt:
@@ -132,6 +168,8 @@ Two details that matter with small models:
 
 - **Option names, not letters.** Lettered options (A, B, C) make small models over-pick "B". Answering with the option name avoids that. When two names share their first token ("re" in *refund* and *rebooking*), the next token's probabilities split them.
 - **Question before and after the input.** On our test cases this raised accuracy from 6/9 to 8/9 for yes/no questions.
+
+For `/v1/extract`, enum and boolean fields are scored like choice and binary questions; all string, number, and integer fields are generated together as one JSON object, and each value's confidence comes from the probabilities of the tokens that spell it. Engines that can't generate text (System 1 servers) leave those fields `null` with a warning.
 
 If the model server returns no logprobs, or the model answers with something that isn't a label, you still get an answer, plus a warning in `meta.warnings`.
 
@@ -165,7 +203,7 @@ A hosted model sends your input to that provider. Use one only if your company h
 
 ### Which model for which use case
 
-Most teams need one use case, not all nine, so pick per use case. `evals/run.py` holds 120 labeled cases, 20 per use case, including deliberately hard ones (rerank distractors that share the query's words, answers that are subtly wrong). A model counts as **good enough** for a use case at 17/20 (85%) or better.
+Most teams need one use case, not all nine, so pick per use case. `evals/run.py` holds 140 labeled cases, 20 per use case, including deliberately hard ones (rerank distractors that share the query's words, answers that are subtly wrong, extraction fields that aren't in the text and must come back empty). A model counts as **good enough** for a use case at 17/20 (85%) or better.
 
 | Use case | Recommended | Also good enough | Not good enough |
 |---|---|---|---|
@@ -175,6 +213,7 @@ Most teams need one use case, not all nine, so pick per use case. `evals/run.py`
 | classify (inbox triage) | **Kev 0.8B** (17/20) | none; qwen2.5:7b is just under (16/20) | qwen2.5:3b 15, Laya 12 |
 | judge | **qwen2.5:7b** (18/20) | none | qwen2.5:3b 15, Kev 10, Laya 9 |
 | rerank | **qwen2.5:3b** (20/20) | qwen2.5:7b 20, Laya 20, Kev 19 | Needle 10 |
+| extract | **qwen2.5:3b** (16/20, 92% of fields); close, see below | none | qwen2.5:7b 15 (93% of fields), Needle 4 (69%) |
 
 Full results, on an RTX 4070 Laptop GPU (8 GB), one model loaded at a time:
 
@@ -186,10 +225,11 @@ Full results, on an RTX 4070 Laptop GPU (8 GB), one model loaded at a time:
 | classify | 16 | 15 | 12 | **17** | 5 |
 | judge | **18** | 15 | 9 | 10 | 2 |
 | rerank | **20** | **20** | **20** | **19** | 10 |
-| **total** | **107/120** | 89 | 76 | 83 | 32 |
+| extract | 15 | **16** | n/a | n/a | 4 |
+| **total** | **122/140** | 105 | 76/120 | 83/120 | 36 |
 | median latency per call | 260–300 ms | 250–260 ms | 25–50 ms | 30–45 ms | 55–390 ms |
 
-Rerank latency is per query of 4 documents: about 1.1 s for the Qwen models, 90–110 ms for Laya and Kev. Guard asks two questions per input, so it takes about twice as long.
+Rerank latency is per query of 4 documents: about 1.1 s for the Qwen models, 90–110 ms for Laya and Kev. Guard asks two questions per input, so it takes about twice as long. Extract takes 0.9–1.3 s per record on the Qwen models (one call for all text fields plus one per enum or yes/no field). Extract counts a record as right only if every field is right. Laya and Kev can't write text, so they can't fill text fields and weren't scored on extract.
 
 What that means in practice:
 
@@ -202,7 +242,8 @@ What that means in practice:
   - Kev ran without its fast kernels, which aren't available on Windows.
 
   If your company can approve one of them, test it on your own cases with `--engine systemone`.
-- **Needle is not a decision model.** It's a tiny on-device model that *writes* tool calls. Asked to classify, it often returns no call at all, and embedding-based rerank only reached 10/20. Its fit is the step before a decision model: Needle proposes the tool call on the device, and `/v1/gate` decides whether to run it.
+- **Extraction is close to good enough.** Both Qwen models get about 92% of fields right, but only 15–16 of 20 records completely right. Typical misses: inventing a date from "next summer", leaving out a meeting title that is in the text. Check low-confidence fields, or send them to a human.
+- **Needle is not a decision model.** It's a tiny on-device model that *writes* tool calls. Asked to classify, it often returns no call at all, and embedding-based rerank only reached 10/20. Even on extraction, its home ground, it got 69% of fields right out of the box. Cactus pitches fine-tuning on your own schema, which we didn't test. Its fit is the step before a decision model: Needle proposes the tool call on the device, and `/v1/gate` decides whether to run it.
 
 Reproduce any column (one model at a time; load only one model into GPU memory):
 
@@ -264,16 +305,20 @@ The code has three layers, and imports only go inward:
 apps ──→ core ←── providers
 ```
 
-- **`stunt_double/core/decision/`**: the domain, with no third-party imports (no httpx, pydantic, time, or os). It holds the interfaces (`IEngine`, `IDecider`, `IReranker`, `IClock`, `IIdProvider`, `IDecisionService`), the domain types (`TChoiceQuestion`, `TRouteRequest`, ...), the prompts, the label scoring, and the use cases (`DecisionServiceBasicImpl`). `DeciderBasicImpl` turns a question into a prompt and asks an `IEngine`.
+- **`stunt_double/core/decision/`**: the domain, with no third-party imports (no httpx, pydantic, time, or os). It holds the interfaces (`IEngine`, `IDecider`, `IClock`, `IIdProvider`, `IDecisionService`, and the optional capabilities `IReranker`, `IGenerator`, `IRecordReader`, `IExtractor`), the domain types (`TChoiceQuestion`, `TRouteRequest`, ...), the prompts, the label scoring, and the use cases (`DecisionServiceBasicImpl`). `DeciderBasicImpl` turns a question into a prompt and asks an `IEngine`.
 - **`stunt_double/providers/<name>/decision/`**: one folder per technology. Each implements core interfaces and depends only on core, never on another provider. `openai` (`EngineOpenAIImpl`), `mock` (`EngineMockImpl`, plus a deterministic clock and id provider for tests), `std` (the real clock and UUIDs), `systemone` (`DeciderSystemOneImpl`), and `needle` (`DeciderNeedleImpl`).
 - **`stunt_double/apps/`**: `server/` (FastAPI, the pydantic transport schemas, the recorder), `cli/`, `client/` (the `StuntDouble` SDK), and `composition.py`, the only place that picks implementations from the settings.
 
 To add an engine:
 
-- If it scores labels from a prompt, implement `IEngine` in `providers/<name>/decision/engine_<name>_impl.py`.
-- If it answers typed questions natively, implement `IDecider` in `providers/<name>/decision/decider_<name>_impl.py`, and also `IReranker` if it can rerank without yes/no questions.
+- If it scores labels from a prompt, implement `IEngine` in `providers/<name>/decision/engine_<name>_impl.py`. Implement `IGenerator` too if it can generate short text, so `/v1/extract` can fill string and number fields.
+- If it answers typed questions natively, implement `IDecider` in `providers/<name>/decision/decider_<name>_impl.py`, and also `IReranker` if it can rerank without yes/no questions, or `IExtractor` if it extracts whole records.
 
 Then add a branch in `apps/composition.py` and the name to `ENGINES` in `apps/config.py`, and put its tests in `tests/providers/<name>/`. `tests/` mirrors `src/`. `tests/core/test_dependency_rule.py` fails if core imports anything external or if one provider imports another.
+
+## Credits
+
+Built by Marijus Masteika with [Claude](https://claude.com/claude-code) (Anthropic) as a coding partner. Claude co-authored the commits.
 
 ## License and trademarks
 

@@ -1,9 +1,30 @@
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 dist/
 build/
 *.egg-info/
+
+# Tool caches and coverage
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Secrets: API keys for hosted engines go in .env, never in the repo
+.env
+.env.*
+!.env.example
+
+# Local data: recorded traffic (--record) and eval reports (--json)
 *.jsonl
+evals/*.json
+
+# Editors, OS, and local agent config
 .claude
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -5,6 +5,7 @@ classification as extraction with an enum field, so each question becomes one
 tool whose `label` argument may only be one of the allowed labels. Needle
 returns one calibrated confidence for the call, not a distribution, so the
 other labels share the remainder evenly. Rerank uses Needle's embeddings.
+Extraction is native: one ``record`` tool call carries every field (see record_tool).
 
 Needs the optional extra: `pip install "stunt-double[needle]"`. ``needle`` is
 imported lazily, so the package imports without it. Telemetry is off by
@@ -22,11 +23,15 @@ from stunt_double.core.decision import prompts
 from stunt_double.core.decision.answer_shaping import question_labels, shape_answer
 from stunt_double.core.decision.confidence import DIGITS
 from stunt_double.core.decision.i_decider import IDecider
+from stunt_double.core.decision.i_extractor import IExtractor
 from stunt_double.core.decision.i_reranker import IReranker
 from stunt_double.core.decision.t_answer import TAnswer
+from stunt_double.core.decision.t_extract import EMPTY, TExtractRequest, TFieldValue
 from stunt_double.core.decision.t_input import TInputValue
 from stunt_double.core.decision.t_question import TQuestion
 from stunt_double.core.decision.tracker import Tracker
+
+from .record_tool import RECORD_SYSTEM, fields_key, record_model, value_from_argument
 
 
 def _import_needle() -> Any:
@@ -42,13 +47,14 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)) or 1)
 
 
-class DeciderNeedleImpl(IDecider, IReranker):
+class DeciderNeedleImpl(IDecider, IReranker, IExtractor):
     name = "needle"
     model = "needle3"
 
     def __init__(self) -> None:
         self._needle = _import_needle()
         self._agents: dict[tuple, Any] = {}
+        self._extractors: dict[tuple, Any] = {}
         self._embedder: Optional[Any] = None
 
     def _agent(self, q: TQuestion, labels: dict[str, str]) -> Any:
@@ -83,6 +89,21 @@ class DeciderNeedleImpl(IDecider, IReranker):
             probs = {k: 1 / len(labels) for k in labels}
         return shape_answer(question, probs)
 
+    async def extract(self, req: TExtractRequest, tracker: Tracker) -> dict[str, TFieldValue]:
+        key = fields_key(req.fields)
+        if key not in self._extractors:
+            tool = record_model(req.fields)
+            self._extractors[key] = self._needle.Needle(tools=[tool], system=RECORD_SYSTEM, stateless=True)
+        r = self._extractors[key].complete(prompts.render_input(req.input))
+        calls = r.get("function_calls") or r.get("suppressed_calls") or []
+        if not calls:
+            tracker.warn("needle made no valid call")
+            return {name: EMPTY for name in req.fields}
+        args = calls[0].get("arguments") or {}
+        conf = r.get("confidence")
+        conf = 1.0 if conf is None else min(1.0, max(0.0, float(conf)))
+        return {name: value_from_argument(name, f, args.get(name), conf, tracker) for name, f in req.fields.items()}
+
     async def rerank_scores(self, query: str, documents: list[str], tracker: Tracker) -> list[float]:
         if self._embedder is None:
             self._embedder = self._needle.Needle(stateless=True)
@@ -91,5 +112,6 @@ class DeciderNeedleImpl(IDecider, IReranker):
         return [round(_cosine(q, embed(text)), DIGITS) for text in documents]
 
     async def aclose(self) -> None:
-        for agent in [*self._agents.values(), *([self._embedder] if self._embedder else [])]:
+        agents = [*self._agents.values(), *self._extractors.values()]
+        for agent in [*agents, *([self._embedder] if self._embedder else [])]:
             agent.close()

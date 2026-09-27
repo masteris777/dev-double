@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 
+from .t_extract import TExtractField
+from .t_generate import TGenerateQuery
 from .t_input import TInputValue
 from .t_label_query import TLabelQuery
 from .t_question import TBinaryQuestion, TChoiceQuestion, TQuestion, TScaleQuestion
@@ -20,6 +22,16 @@ SYSTEM = (
     "with exactly one label from the allowed labels. Output only the label: no "
     "explanation, no punctuation, no other text."
 )
+
+# Extraction: all free-text fields of a request in one JSON object. Wording
+# chosen by A/B test against a per-field prompt (which small models answered
+# with NONE for values plainly present, or echoed the field description).
+RECORD_SYSTEM = (
+    "You extract data from text into JSON. Output one JSON object with exactly the requested "
+    "keys. Copy values from the text, converting them to the requested format. Use null only "
+    "when the text gives no information for a key. Output only the JSON."
+)
+RECORD_MAX_TOKENS = 512
 
 def render_input(value: TInputValue) -> str:
     if isinstance(value, str):
@@ -93,3 +105,26 @@ def query_for(input_text: str, q: TQuestion) -> TLabelQuery:
     if isinstance(q, TChoiceQuestion):
         return choice(input_text, q)
     return scale(input_text, q)
+
+
+def record_max_tokens(n_fields: int) -> int:
+    return min(RECORD_MAX_TOKENS, 48 + 40 * n_fields)
+
+
+def record_key_line(name: str, field: TExtractField) -> str:
+    return f'- "{name}" ({field.type}): {field.description or name.replace("_", " ")}'
+
+
+def extract_record(input_text: str, fields: dict[str, TExtractField]) -> TGenerateQuery:
+    """Free-text fields (string, number, integer) as one JSON object, keys listed
+    before and after the text."""
+    keys = "\n".join(record_key_line(name, f) for name, f in fields.items())
+    user = f"Keys:\n{keys}\n\n<text>\n{input_text}\n</text>\n\nFill in the keys from the text above:\n{keys}\n\nJSON:"
+    return TGenerateQuery(
+        system=RECORD_SYSTEM,
+        user=user,
+        max_tokens=record_max_tokens(len(fields)),
+        json=True,
+        input_text=input_text,
+        fields=tuple(fields),
+    )

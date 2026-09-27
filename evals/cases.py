@@ -265,3 +265,89 @@ RERANK = [
         "Date changes are allowed up to 24 hours before departure for a 50 EUR fee plus any fare difference.",
     ], 3),
 ]
+
+# ---------------------------------------------------------------- extract
+# (input, fields, expected values). None = the input doesn't contain it (the
+# extractor must not invent a value). A tuple lists acceptable alternatives.
+# Strings compare ignoring case, spaces and punctuation; numbers within 0.01.
+
+INVOICE = {
+    "vendor": {"type": "string", "description": "Company that issued the invoice."},
+    "total": {"type": "number", "description": "Total amount due, as a number without currency symbol."},
+    "currency": {"type": "enum", "options": ["EUR", "USD", "GBP"]},
+    "due_date": {"type": "string", "description": "Payment due date as YYYY-MM-DD."},
+    "paid": {"type": "boolean", "description": "The invoice has already been paid."},
+}
+FLIGHT = {
+    "airline": {"type": "string", "description": "Airline name."},
+    "flight_number": {"type": "string", "description": "Flight number, e.g. LH123."},
+    "date": {"type": "string", "description": "Departure date as YYYY-MM-DD."},
+    "passengers": {"type": "integer", "description": "Number of passengers."},
+    "cabin": {"type": "enum", "options": {"economy": "Economy class.", "premium": "Premium economy.", "business": "Business or first class."}},
+}
+TICKET = {
+    "customer_name": {"type": "string", "description": "Full name of the customer."},
+    "order_id": {"type": "string", "description": "Order number, e.g. A-10442."},
+    "issue": {"type": "enum", "options": {
+        "late_delivery": "The order arrived late or hasn't arrived.",
+        "damaged": "The item arrived broken or damaged.",
+        "wrong_item": "A different item than ordered arrived.",
+        "other": "Anything else.",
+    }},
+    "wants_refund": {"type": "boolean", "description": "The customer asks for their money back."},
+}
+THERMOSTAT = {
+    "room": {"type": "string", "description": "Room to control."},
+    "temperature": {"type": "number", "description": "Target temperature in degrees Celsius."},
+    "mode": {"type": "enum", "options": {"heat": "Heating.", "cool": "Cooling or air conditioning.", "auto": "Automatic, or not specified."}},
+}
+MEETING = {
+    "title": {"type": "string", "description": "Short title of the meeting."},
+    "date": {"type": "string", "description": "Meeting date as YYYY-MM-DD."},
+    "time": {"type": "string", "description": "Start time as HH:MM, 24-hour clock."},
+    "attendees": {"type": "integer", "description": "Number of people invited, including the sender."},
+    "online": {"type": "boolean", "description": "The meeting is held online (video call)."},
+}
+
+EXTRACT = [
+    ("INVOICE #4471\nFrom: Acme Corp\nAmount due: EUR 1,200.00\nDue: 2026-10-01\nStatus: unpaid", INVOICE,
+     {"vendor": "Acme Corp", "total": 1200.0, "currency": "EUR", "due_date": "2026-10-01", "paid": False}),
+    ("Thanks for your payment! Receipt from Northwind Traders: $349.99 received on 12 Sep 2026.", INVOICE,
+     {"vendor": "Northwind Traders", "total": 349.99, "currency": "USD", "due_date": None, "paid": True}),
+    ("Bristol Plumbing Ltd - Invoice 88. Labour and parts: £86.40. Please pay within 14 days of 3 March 2026 (by 2026-03-17).", INVOICE,
+     {"vendor": "Bristol Plumbing Ltd", "total": 86.4, "currency": "GBP", "due_date": "2026-03-17", "paid": False}),
+    ("Rechnung von Müller GmbH über 2.450,50 EUR, zahlbar bis 30.11.2026.", INVOICE,
+     {"vendor": ("Müller GmbH", "Muller GmbH"), "total": 2450.5, "currency": "EUR", "due_date": "2026-11-30", "paid": False}),
+    ("Your booking is confirmed: Lufthansa LH 1172, Frankfurt to Lisbon, 14 October 2026, 2 adults, economy.", FLIGHT,
+     {"airline": "Lufthansa", "flight_number": ("LH1172", "LH 1172"), "date": "2026-10-14", "passengers": 2, "cabin": "economy"}),
+    ("KLM KL1001 AMS-LHR on 2026-12-02. Passenger: Jane Doe. Seat 2A, Business.", FLIGHT,
+     {"airline": "KLM", "flight_number": ("KL1001", "KL 1001"), "date": "2026-12-02", "passengers": 1, "cabin": "business"}),
+    ("Hi! Booking for our family of four on the Ryanair flight to Malaga next summer, cheapest seats please.", FLIGHT,
+     {"airline": "Ryanair", "flight_number": None, "date": None, "passengers": 4, "cabin": "economy"}),
+    ("E-ticket: Delta DL 405 JFK to Paris CDG, departs 2027-01-19 18:40. 3 passengers, Premium Select (premium economy).", FLIGHT,
+     {"airline": "Delta", "flight_number": ("DL405", "DL 405"), "date": "2027-01-19", "passengers": 3, "cabin": "premium"}),
+    ("Hello, this is Maria Rossi. My order A-10442 arrived today but the lamp is smashed. I'd like a refund please.", TICKET,
+     {"customer_name": "Maria Rossi", "order_id": "A-10442", "issue": "damaged", "wants_refund": True}),
+    ("Order B-2231 still hasn't arrived after three weeks. Can you check where it is? - Tom Becker", TICKET,
+     {"customer_name": "Tom Becker", "order_id": "B-2231", "issue": "late_delivery", "wants_refund": False}),
+    ("I ordered a blue jacket and got a red one. Please send the right colour. Thanks, Aiko Tanaka", TICKET,
+     {"customer_name": "Aiko Tanaka", "order_id": None, "issue": "wrong_item", "wants_refund": False}),
+    ("How do I change the email address on my account? I'm Sam Okafor, customer since 2019.", TICKET,
+     {"customer_name": "Sam Okafor", "order_id": None, "issue": "other", "wants_refund": False}),
+    ("set the living room to 21 degrees", THERMOSTAT,
+     {"room": "living room", "temperature": 21.0, "mode": "auto"}),
+    ("It's boiling in the bedroom, cool it down to 19.5 please", THERMOSTAT,
+     {"room": "bedroom", "temperature": 19.5, "mode": "cool"}),
+    ("heat the office to 23°C", THERMOSTAT,
+     {"room": "office", "temperature": 23.0, "mode": "heat"}),
+    ("make the kitchen warmer", THERMOSTAT,
+     {"room": "kitchen", "temperature": None, "mode": "heat"}),
+    ("Invite: Q4 roadmap review, Thursday 2026-10-08 at 2:30pm, Zoom link below. Invited: me, Anna, Raj, Li.", MEETING,
+     {"title": ("Q4 roadmap review", "Q4 roadmap"), "date": "2026-10-08", "time": "14:30", "attendees": 4, "online": True}),
+    ("Lunch & learn on security basics, 2026-11-12, 12:00, meeting room Oslo. Whole team of 8 invited.", MEETING,
+     {"title": ("Lunch & learn on security basics", "Security basics", "Lunch and learn"), "date": "2026-11-12", "time": "12:00", "attendees": 8, "online": False}),
+    ("Quick sync with you tomorrow morning about the budget? Just the two of us, on Teams.", MEETING,
+     {"title": ("Budget sync", "Quick sync", "Sync about the budget", "Quick sync about the budget"), "date": None, "time": None, "attendees": 2, "online": True}),
+    ("Board meeting on 2027-02-01 at 09:00 in the HQ boardroom.", MEETING,
+     {"title": "Board meeting", "date": "2027-02-01", "time": "09:00", "attendees": None, "online": False}),
+]

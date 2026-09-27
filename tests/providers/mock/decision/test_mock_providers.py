@@ -31,3 +31,18 @@ async def test_engine_scores_by_word_overlap():
     assert result.probabilities["refund"] > result.probabilities["rebooking"]
     assert sum(result.probabilities.values()) == pytest.approx(1.0)
     assert (result.usage.input_tokens, result.usage.output_tokens) == (3, 1)
+
+
+async def test_engine_generates_a_json_record_from_labelled_lines():
+    import json
+
+    from stunt_double.core.decision.t_generate import TGenerateQuery
+
+    text = 'Invoice\nDue date: 2026-10-01\n{\n  "vendor": "Acme Corp",\n}'
+    q = TGenerateQuery(
+        system="s", user="u", max_tokens=64, json=True, input_text=text, fields=("due_date", "vendor", "total")
+    )
+    r = await EngineMockImpl().generate(q)
+    assert json.loads(r.text) == {"due_date": "2026-10-01", "vendor": "Acme Corp", "total": None}
+    assert (r.confidence, r.tokens, r.warnings) == (1.0, [], [])
+    assert r.usage.output_tokens == 1

@@ -22,3 +22,5 @@ def test_client_calls_every_endpoint():
         assert len(sd.rerank("q", ["a", "b"], top_n=1)["results"]) == 1
         r = sd.decide("x", {"q": {"type": "binary", "question": "?"}})
         assert r["answers"]["q"]["type"] == "binary"
+        e = sd.extract("Vendor: Acme", {"vendor": {"type": "string"}, "paid": {"type": "boolean"}})
+        assert e["values"]["vendor"] == "Acme" and "probability" in e["fields"]["paid"]

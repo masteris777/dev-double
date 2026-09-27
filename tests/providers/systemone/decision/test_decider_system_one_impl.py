@@ -67,6 +67,21 @@ async def test_server_errors_become_engine_errors():
         await d.ask("x", TBinaryQuestion("?"), Tracker(ClockMockImpl()))
 
 
+async def test_extract_scores_enums_and_leaves_text_fields_empty():
+    from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+    from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
+    from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+
+    d, seen = decider_returning({"probabilities": {"EUR": 0.9, "USD": 0.1}})
+    svc = DecisionServiceBasicImpl(d, ClockMockImpl(), IdProviderMockImpl())
+    fields = {"currency": TExtractField("enum", options=["EUR", "USD"]), "vendor": TExtractField("string")}
+    r = await svc.extract(TExtractRequest("Invoice, 100 EUR", fields))
+    assert r.fields["currency"] == TFieldValue("EUR", 0.8, probabilities={"EUR": 0.9, "USD": 0.1})
+    assert r.fields["vendor"] == TFieldValue(None, 0.0)
+    assert r.meta.warnings == ["engine can't generate text: field vendor left empty"]
+    assert len(seen) == 1 and json.loads(seen[0].content)["questions"]["q"]["type"] == "choice"
+
+
 # ------------------------------------------------------------------ integration
 
 

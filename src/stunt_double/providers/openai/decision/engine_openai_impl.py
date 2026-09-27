@@ -5,17 +5,24 @@ hosted provider your company already approved.
 The model is asked to reply with a single label, and the answer is read from
 the probabilities the model gave each candidate token. One short
 completion per question; no text generation, no JSON parsing.
+
+It is also an ``IGenerator``: for extraction fields that need free text
+(names, amounts, dates) it generates one JSON object, and returns the tokens'
+probabilities so each value gets its own confidence.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import httpx
 
 from stunt_double.core.decision.errors import EngineError
 from stunt_double.core.decision.i_engine import IEngine
+from stunt_double.core.decision.i_generator import IGenerator
 from stunt_double.core.decision.label_scoring import label_distribution, label_from_text, one_hot, uniform
+from stunt_double.core.decision.t_generate import TGenerateQuery, TGenerateResult
 from stunt_double.core.decision.t_label_query import TLabelQuery, TLabelResult, TPosition
 from stunt_double.core.decision.t_usage import TUsage
 
@@ -26,7 +33,7 @@ TOP_LOGPROBS = 20
 LOW_MASS = 0.5
 
 
-class EngineOpenAIImpl(IEngine):
+class EngineOpenAIImpl(IEngine, IGenerator):
     name = "openai"
 
     def __init__(
@@ -49,17 +56,14 @@ class EngineOpenAIImpl(IEngine):
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def distribution(self, query: TLabelQuery) -> TLabelResult:
+    async def _complete(self, system: str, user: str, **options: object) -> tuple[dict, TUsage]:
+        """One /chat/completions call; returns the first choice and the usage."""
         body = {
             "model": self._model,
-            "messages": [
-                {"role": "system", "content": query.system},
-                {"role": "user", "content": query.user},
-            ],
-            "max_tokens": MAX_TOKENS,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             "temperature": 0,
             "logprobs": True,
-            "top_logprobs": TOP_LOGPROBS,
+            **options,
         }
         try:
             response = await self._client.post(self._url, json=body, headers=self._headers)
@@ -81,9 +85,38 @@ class EngineOpenAIImpl(IEngine):
             input_tokens=raw_usage.get("prompt_tokens", 0),
             output_tokens=raw_usage.get("completion_tokens", 0),
         )
+        return choice, usage
+
+    async def distribution(self, query: TLabelQuery) -> TLabelResult:
+        choice, usage = await self._complete(
+            query.system, query.user, max_tokens=MAX_TOKENS, top_logprobs=TOP_LOGPROBS
+        )
         content = (choice.get("message") or {}).get("content") or ""
         positions = ((choice.get("logprobs") or {}).get("content")) or []
         return self._read(positions, content, query.labels, usage)
+
+    async def generate(self, query: TGenerateQuery) -> TGenerateResult:
+        """Free text (or one JSON object) at temperature 0; confidence is exp(mean
+        logprob) of the generated tokens, which are returned for per-value scoring."""
+        options: dict = {"max_tokens": query.max_tokens, "top_logprobs": 1}
+        if query.json:
+            options["response_format"] = {"type": "json_object"}
+        choice, usage = await self._complete(query.system, query.user, **options)
+        content = (choice.get("message") or {}).get("content") or ""
+        positions = ((choice.get("logprobs") or {}).get("content")) or []
+        tokens = [(p.get("token", ""), float(p["logprob"])) for p in positions if "logprob" in p]
+        warnings: list[str] = []
+        if tokens:
+            confidence = min(1.0, math.exp(sum(lp for _, lp in tokens) / len(tokens)))
+        else:
+            confidence = 1.0
+            warnings.append(
+                "The model server returned no logprobs, so extracted values' confidence is a "
+                "placeholder 1.0. Use a server with logprobs support (e.g. Ollama >= 0.12.11)."
+            )
+        if choice.get("finish_reason") == "length":
+            warnings.append(f"The output was cut off at {query.max_tokens} tokens.")
+        return TGenerateResult(content, confidence, usage, warnings, tokens)
 
     @staticmethod
     def _read(raw_positions: list[dict], content: str, labels: list[str], usage: TUsage) -> TLabelResult:

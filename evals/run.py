@@ -30,6 +30,7 @@ from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
 from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
 from stunt_double.core.decision.i_decider import IDecider
 from stunt_double.core.decision.t_classify import TClassifyRequest
+from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest
 from stunt_double.core.decision.t_gate import TGateRequest, TToolCall
 from stunt_double.core.decision.t_guard import TGuardRequest
 from stunt_double.core.decision.t_judge import TJudgeRequest
@@ -130,6 +131,37 @@ for query, docs, best in cases.RERANK:
         return str(r.results[0].index), scores[best] / (sum(scores.values()) or 1)
 
     add("rerank", query, str(best), rerank)
+
+
+def _norm(value: Any) -> Any:
+    if isinstance(value, str):
+        return "".join(ch for ch in value.casefold() if ch.isalnum())
+    return value
+
+
+def _field_ok(got: Any, want: Any) -> bool:
+    for w in want if isinstance(want, tuple) else (want,):
+        if w is None or isinstance(w, bool):
+            ok = got is w
+        elif isinstance(w, (int, float)):
+            ok = isinstance(got, (int, float)) and not isinstance(got, bool) and abs(got - w) < 0.01
+        else:
+            ok = isinstance(got, str) and _norm(got) == _norm(w)
+        if ok:
+            return True
+    return False
+
+
+for text, fields, want in cases.EXTRACT:
+
+    async def extract(svc: Svc, text=text, fields=fields, want=want):
+        spec = {name: TExtractField(f["type"], f.get("description"), f.get("options")) for name, f in fields.items()}
+        got = (await svc.extract(TExtractRequest(text, spec))).values
+        wrong = [name for name in want if not _field_ok(got.get(name), want[name])]
+        # p_ok here is the share of fields extracted correctly.
+        return ("all" if not wrong else "wrong: " + ", ".join(f"{n}={got.get(n)!r}" for n in wrong)), 1 - len(wrong) / len(want)
+
+    add("extract", short(text), "all", extract)
 
 
 # ---------------------------------------------------------------- runner

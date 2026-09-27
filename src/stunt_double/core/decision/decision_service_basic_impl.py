@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from . import use_case_questions as uq
+from .field_extraction import read_fields
 from .i_clock import IClock
 from .i_decider import IDecider
 from .i_decision_service import IDecisionService
@@ -13,6 +14,7 @@ from .i_reranker import IReranker
 from .t_answer import TAnswer, TBinaryAnswer, TChoiceAnswer, TScaleAnswer
 from .t_classify import TClassification, TClassifyRequest, TClassifyResponse
 from .t_decide import TDecideRequest, TDecideResponse
+from .t_extract import TExtractRequest, TExtractResponse
 from .t_gate import TGateRequest, TGateResponse
 from .t_guard import TGuardCheck, TGuardRequest, TGuardResponse
 from .t_input import TInputValue
@@ -108,6 +110,11 @@ class DecisionServiceBasicImpl(IDecisionService):
             confidence=a.confidence,
             meta=self._meta(t),
         )
+
+    async def extract(self, req: TExtractRequest) -> TExtractResponse:
+        t = self._tracker()
+        fields = await read_fields(self.decider, req, t)
+        return TExtractResponse(fields=fields, meta=self._meta(t))
 
     async def rerank(self, req: TRerankRequest) -> TRerankResponse:
         t = self._tracker()

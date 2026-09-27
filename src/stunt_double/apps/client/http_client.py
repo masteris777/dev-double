@@ -96,3 +96,7 @@ class StuntDouble:
             "/v1/rerank",
             {"query": query, "documents": documents, "top_n": top_n, "return_documents": return_documents},
         )
+
+    def extract(self, input: Any, fields: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """``fields``: name -> {"type": string|number|integer|boolean|enum, "description"?, "options"?}."""
+        return self._post("/v1/extract", {"input": input, "fields": fields})

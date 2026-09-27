@@ -1,18 +1,22 @@
 [project]
 name = "stunt-double"
 version = "0.1.0"
-description = "A local stand-in for fast decision-model and reranking APIs, powered by a small LLM you already run."
+description = "A local stand-in for System 1 decision models: build routing, guardrails, tool gating, triage, evals, reranking and extraction now, swap the engine later."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Marijus Masteika" }]
-keywords = ["llm", "classification", "rerank", "guardrails", "ollama", "local", "mock"]
+keywords = ["llm", "system-1", "decision-model", "classification", "rerank", "guardrails", "extraction", "ollama", "local", "mock"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
@@ -21,6 +25,11 @@ dependencies = [
     "pydantic>=2.6",
     "uvicorn>=0.29",
 ]
+
+[project.urls]
+Homepage = "https://github.com/masteris777/stunt-double"
+Repository = "https://github.com/masteris777/stunt-double"
+Issues = "https://github.com/masteris777/stunt-double/issues"
 
 [project.scripts]
 stunt-double = "stunt_double.apps.cli.main:main"

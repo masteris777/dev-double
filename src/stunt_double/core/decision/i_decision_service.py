@@ -6,6 +6,7 @@ from typing import Protocol
 
 from .t_classify import TClassifyRequest, TClassifyResponse
 from .t_decide import TDecideRequest, TDecideResponse
+from .t_extract import TExtractRequest, TExtractResponse
 from .t_gate import TGateRequest, TGateResponse
 from .t_guard import TGuardRequest, TGuardResponse
 from .t_judge import TJudgeRequest, TJudgeResponse
@@ -33,5 +34,7 @@ class IDecisionService(Protocol):
     async def judge(self, req: TJudgeRequest) -> TJudgeResponse: ...
 
     async def rerank(self, req: TRerankRequest) -> TRerankResponse: ...
+
+    async def extract(self, req: TExtractRequest) -> TExtractResponse: ...
 
     async def aclose(self) -> None: ...
