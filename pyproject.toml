@@ -1,5 +1,5 @@
 [project]
-name = "stunt-double"
+name = "dev-double"
 version = "0.1.0"
 description = "A local stand-in for System 1 decision models: build routing, guardrails, tool gating, triage, evals, reranking and extraction now, swap the engine later."
 readme = "README.md"
@@ -27,12 +27,12 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/masteris777/stunt-double"
-Repository = "https://github.com/masteris777/stunt-double"
-Issues = "https://github.com/masteris777/stunt-double/issues"
+Homepage = "https://github.com/masteris777/dev-double"
+Repository = "https://github.com/masteris777/dev-double"
+Issues = "https://github.com/masteris777/dev-double/issues"
 
 [project.scripts]
-stunt-double = "stunt_double.apps.cli.main:main"
+dev-double = "dev_double.apps.cli.main:main"
 
 [project.optional-dependencies]
 needle = ["cactus-needle"]
@@ -45,7 +45,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/stunt_double"]
+packages = ["src/dev_double"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,17 +1,17 @@
 from fastapi.testclient import TestClient
 
-from stunt_double.apps.client import StuntDouble as AppsStuntDouble
-from stunt_double.apps.config import Settings
-from stunt_double.apps.server.app import create_app
-from stunt_double.client import StuntDouble
+from dev_double.apps.client import DevDouble as AppsDevDouble
+from dev_double.apps.config import Settings
+from dev_double.apps.server.app import create_app
+from dev_double.client import DevDouble
 
 
 def test_documented_import_path_still_works():
-    assert StuntDouble is AppsStuntDouble
+    assert DevDouble is AppsDevDouble
 
 
 def test_client_calls_every_endpoint():
-    with TestClient(create_app(Settings(engine="mock"))) as http, StuntDouble() as sd:
+    with TestClient(create_app(Settings(engine="mock"))) as http, DevDouble() as sd:
         sd._http.close()
         sd._http = http  # TestClient is an httpx.Client
         assert sd.route("Reformat a date")["route"] in {"small", "medium", "large"}

@@ -1,8 +1,8 @@
-"""A tour of every endpoint. Start the server first: `stunt-double serve`."""
+"""A tour of every endpoint. Start the server first: `dev-double serve`."""
 
 import json
 
-from stunt_double.client import StuntDouble
+from dev_double.client import DevDouble
 
 
 def show(title: str, result: dict) -> None:
@@ -13,7 +13,7 @@ def show(title: str, result: dict) -> None:
         print("warning:", warning)
 
 
-with StuntDouble() as sd:
+with DevDouble() as sd:
     show("route", sd.route("Prove there are infinitely many primes, then formalize the proof in Lean 4."))
     show("route", sd.route("Turn 'sept 25 2026' into ISO format."))
 

@@ -2,14 +2,14 @@ import math
 
 import pytest
 
-from stunt_double.core.decision.label_scoring import (
+from dev_double.core.decision.label_scoring import (
     label_distribution,
     label_from_text,
     normalize,
     one_hot,
     uniform,
 )
-from stunt_double.core.decision.t_label_query import TPosition
+from dev_double.core.decision.t_label_query import TPosition
 
 
 def lp(p: float) -> float:

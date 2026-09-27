@@ -5,12 +5,12 @@ import pytest
 from _shared.resources import SYSTEMONE_URL, has_systemone
 from _shared.timing import timed
 
-from stunt_double.core.decision.errors import EngineError
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.systemone.decision.decider_system_one_impl import DeciderSystemOneImpl
+from dev_double.core.decision.errors import EngineError
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.systemone.decision.decider_system_one_impl import DeciderSystemOneImpl
 
 
 def decider_returning(answer: dict, status: int = 200, usage: dict | None = None):
@@ -68,9 +68,9 @@ async def test_server_errors_become_engine_errors():
 
 
 async def test_extract_scores_enums_and_leaves_text_fields_empty():
-    from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
-    from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
-    from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+    from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+    from dev_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
+    from dev_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
 
     d, seen = decider_returning({"probabilities": {"EUR": 0.9, "USD": 0.1}})
     svc = DecisionServiceBasicImpl(d, ClockMockImpl(), IdProviderMockImpl())
@@ -87,7 +87,7 @@ async def test_extract_scores_enums_and_leaves_text_fields_empty():
 
 @pytest.mark.skipif(not has_systemone(), reason=f"no System 1 server at {SYSTEMONE_URL}/v1/systemone")
 async def test_live_system_one_server():
-    from stunt_double.providers.std.decision.clock_std_impl import ClockStdImpl
+    from dev_double.providers.std.decision.clock_std_impl import ClockStdImpl
 
     d = DeciderSystemOneImpl("systemone", SYSTEMONE_URL)
     t = Tracker(ClockStdImpl())

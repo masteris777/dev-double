@@ -26,19 +26,19 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 import cases
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
-from stunt_double.core.decision.i_decider import IDecider
-from stunt_double.core.decision.t_classify import TClassifyRequest
-from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest
-from stunt_double.core.decision.t_gate import TGateRequest, TToolCall
-from stunt_double.core.decision.t_guard import TGuardRequest
-from stunt_double.core.decision.t_judge import TJudgeRequest
-from stunt_double.core.decision.t_rerank import TRerankRequest
-from stunt_double.core.decision.t_route import TRouteRequest
-from stunt_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
-from stunt_double.providers.std.decision.clock_std_impl import ClockStdImpl
-from stunt_double.providers.std.decision.id_provider_std_impl import IdProviderStdImpl
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+from dev_double.core.decision.i_decider import IDecider
+from dev_double.core.decision.t_classify import TClassifyRequest
+from dev_double.core.decision.t_extract import TExtractField, TExtractRequest
+from dev_double.core.decision.t_gate import TGateRequest, TToolCall
+from dev_double.core.decision.t_guard import TGuardRequest
+from dev_double.core.decision.t_judge import TJudgeRequest
+from dev_double.core.decision.t_rerank import TRerankRequest
+from dev_double.core.decision.t_route import TRouteRequest
+from dev_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
+from dev_double.providers.std.decision.clock_std_impl import ClockStdImpl
+from dev_double.providers.std.decision.id_provider_std_impl import IdProviderStdImpl
 
 GOOD_ENOUGH = 0.85
 CONFIDENTLY_WRONG = 0.1
@@ -169,11 +169,11 @@ for text, fields, want in cases.EXTRACT:
 
 def build(target: str, base_url: str) -> IDecider:
     if target == "needle":
-        from stunt_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
+        from dev_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
 
         return DeciderNeedleImpl()
     if "=" in target:
-        from stunt_double.providers.systemone.decision.decider_system_one_impl import DeciderSystemOneImpl
+        from dev_double.providers.systemone.decision.decider_system_one_impl import DeciderSystemOneImpl
 
         name, url = target.split("=", 1)
         return DeciderSystemOneImpl(name, url, model=name)

@@ -2,22 +2,22 @@
 
 import pytest
 
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
-from stunt_double.core.decision.defaults import DEFAULT_RUBRIC
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
-from stunt_double.core.decision.t_classify import TClassifyRequest
-from stunt_double.core.decision.t_decide import TDecideRequest
-from stunt_double.core.decision.t_gate import TGateRequest, TToolCall
-from stunt_double.core.decision.t_guard import TGuardRequest
-from stunt_double.core.decision.t_judge import TJudgeRequest
-from stunt_double.core.decision.t_question import TBinaryQuestion
-from stunt_double.core.decision.t_rerank import TRerankRequest
-from stunt_double.core.decision.t_route import TRouteRequest
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
-from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+from dev_double.core.decision.defaults import DEFAULT_RUBRIC
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
+from dev_double.core.decision.t_classify import TClassifyRequest
+from dev_double.core.decision.t_decide import TDecideRequest
+from dev_double.core.decision.t_gate import TGateRequest, TToolCall
+from dev_double.core.decision.t_guard import TGuardRequest
+from dev_double.core.decision.t_judge import TJudgeRequest
+from dev_double.core.decision.t_question import TBinaryQuestion
+from dev_double.core.decision.t_rerank import TRerankRequest
+from dev_double.core.decision.t_route import TRouteRequest
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
 
 
 @pytest.fixture

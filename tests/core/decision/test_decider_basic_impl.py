@@ -1,14 +1,14 @@
 import pytest
 
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.errors import EngineError
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
-from stunt_double.core.decision.t_label_query import TLabelQuery, TLabelResult
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
-from stunt_double.core.decision.t_usage import TUsage
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.errors import EngineError
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
+from dev_double.core.decision.t_label_query import TLabelQuery, TLabelResult
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
+from dev_double.core.decision.t_usage import TUsage
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
 
 
 class ScriptedEngine:

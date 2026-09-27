@@ -2,15 +2,15 @@
 
 import pytest
 
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
-from stunt_double.core.decision.extract_questions import boolean_question, enum_question
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
-from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
-from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+from dev_double.core.decision.extract_questions import boolean_question, enum_question
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
+from dev_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
 
 INVOICE = "INVOICE\nVendor: Acme Corp\nTotal: 1,200.50\nCurrency: euro, paid in euros\nStatus: already paid"
 

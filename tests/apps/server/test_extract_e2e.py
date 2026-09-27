@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from stunt_double.apps.config import Settings
-from stunt_double.apps.server.app import create_app
+from dev_double.apps.config import Settings
+from dev_double.apps.server.app import create_app
 
 INVOICE = "INVOICE\nVendor: Acme Corp\nTotal: 1,200.50\nCurrency: euro, paid in euros\nStatus: already paid"
 

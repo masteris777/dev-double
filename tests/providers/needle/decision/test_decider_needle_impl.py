@@ -2,10 +2,10 @@ import pytest
 from _shared.resources import has_module
 from _shared.timing import timed
 
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
 
 
 class FakeNeedle:
@@ -34,7 +34,7 @@ def fake_needle(monkeypatch):
 
     monkeypatch.setitem(__import__("sys").modules, "needle", types.SimpleNamespace(Needle=FakeNeedle))
     FakeNeedle.instances = []
-    from stunt_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
+    from dev_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
 
     return DeciderNeedleImpl()
 
@@ -57,7 +57,7 @@ async def test_no_valid_call_is_uniform_with_warning(fake_needle):
 
 
 async def test_rerank_uses_embeddings_and_close_closes_agents(fake_needle):
-    from stunt_double.core.decision.i_reranker import IReranker
+    from dev_double.core.decision.i_reranker import IReranker
 
     assert isinstance(fake_needle, IReranker)
     scores = await fake_needle.rerank_scores("password?", ["office hours", "reset password"], Tracker(ClockMockImpl()))
@@ -67,8 +67,8 @@ async def test_rerank_uses_embeddings_and_close_closes_agents(fake_needle):
 
 
 async def test_extract_builds_one_record_tool_and_maps_arguments(fake_needle):
-    from stunt_double.core.decision.i_extractor import IExtractor
-    from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
+    from dev_double.core.decision.i_extractor import IExtractor
+    from dev_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
 
     assert isinstance(fake_needle, IExtractor)
     fields = {
@@ -103,7 +103,7 @@ async def test_extract_builds_one_record_tool_and_maps_arguments(fake_needle):
 
 
 async def test_extract_without_a_call_leaves_fields_empty(fake_needle):
-    from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
+    from dev_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
 
     FakeNeedle.reply = {"function_calls": [], "confidence": 0.3}
     t = Tracker(ClockMockImpl())
@@ -114,7 +114,7 @@ async def test_extract_without_a_call_leaves_fields_empty(fake_needle):
 
 @pytest.mark.skipif(not has_module("needle"), reason="cactus-needle is not installed")
 async def test_needle_answers_and_reranks():
-    from stunt_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
+    from dev_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
 
     d = DeciderNeedleImpl()
     t = Tracker(ClockMockImpl())
@@ -155,8 +155,8 @@ async def test_needle_answers_and_reranks():
 
 @pytest.mark.skipif(not has_module("needle"), reason="cactus-needle is not installed")
 async def test_needle_extracts_a_record():
-    from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest
-    from stunt_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
+    from dev_double.core.decision.t_extract import TExtractField, TExtractRequest
+    from dev_double.providers.needle.decision.decider_needle_impl import DeciderNeedleImpl
 
     d = DeciderNeedleImpl()
     req = TExtractRequest(

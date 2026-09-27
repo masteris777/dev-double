@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/stunt-double
+      url: https://pypi.org/p/dev-double
     permissions:
       id-token: write
     steps:

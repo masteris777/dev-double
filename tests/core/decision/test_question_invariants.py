@@ -1,19 +1,19 @@
 import pytest
 
-from stunt_double.core.decision.t_classify import TClassifyRequest
-from stunt_double.core.decision.t_decide import TDecideRequest
-from stunt_double.core.decision.t_gate import TGateRequest, TToolCall
-from stunt_double.core.decision.t_guard import TGuardRequest
-from stunt_double.core.decision.t_judge import TJudgeRequest
-from stunt_double.core.decision.t_question import (
+from dev_double.core.decision.t_classify import TClassifyRequest
+from dev_double.core.decision.t_decide import TDecideRequest
+from dev_double.core.decision.t_gate import TGateRequest, TToolCall
+from dev_double.core.decision.t_guard import TGuardRequest
+from dev_double.core.decision.t_judge import TJudgeRequest
+from dev_double.core.decision.t_question import (
     MAX_LEVELS,
     MAX_OPTIONS,
     TChoiceQuestion,
     TScaleQuestion,
     check_option_keys,
 )
-from stunt_double.core.decision.t_rerank import TRerankRequest
-from stunt_double.core.decision.t_route import TRouteRequest
+from dev_double.core.decision.t_rerank import TRerankRequest
+from dev_double.core.decision.t_route import TRouteRequest
 
 
 def test_choice_needs_2_to_20_options():

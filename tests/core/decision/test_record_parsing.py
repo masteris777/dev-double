@@ -2,15 +2,15 @@ import math
 
 import pytest
 
-from stunt_double.core.decision.record_parsing import (
+from dev_double.core.decision.record_parsing import (
     parse_object,
     parse_record,
     span_confidence,
     value_spans,
 )
-from stunt_double.core.decision.t_extract import TExtractField, TFieldValue
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.core.decision.t_extract import TExtractField, TFieldValue
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
 
 FIELDS = {
     "vendor": TExtractField("string"),

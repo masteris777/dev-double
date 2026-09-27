@@ -1,6 +1,6 @@
 import pytest
 
-from stunt_double.core.decision.value_parsing import clean_text, parse_field_text, parse_number
+from dev_double.core.decision.value_parsing import clean_text, parse_field_text, parse_number
 
 
 @pytest.mark.parametrize(

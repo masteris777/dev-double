@@ -3,16 +3,16 @@
 import json
 import math
 
-from stunt_double.core.decision import prompts
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.i_generator import IGenerator
-from stunt_double.core.decision.i_record_reader import IRecordReader
-from stunt_double.core.decision.t_extract import TExtractField, TFieldValue
-from stunt_double.core.decision.t_generate import TGenerateQuery, TGenerateResult
-from stunt_double.core.decision.t_usage import TUsage
-from stunt_double.core.decision.tracker import Tracker
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.core.decision import prompts
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.i_generator import IGenerator
+from dev_double.core.decision.i_record_reader import IRecordReader
+from dev_double.core.decision.t_extract import TExtractField, TFieldValue
+from dev_double.core.decision.t_generate import TGenerateQuery, TGenerateResult
+from dev_double.core.decision.t_usage import TUsage
+from dev_double.core.decision.tracker import Tracker
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
 
 FIELDS = {
     "vendor": TExtractField("string", "Company that issued the invoice."),

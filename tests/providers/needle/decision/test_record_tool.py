@@ -1,5 +1,5 @@
-from stunt_double.core.decision.t_extract import TExtractField
-from stunt_double.providers.needle.decision.record_tool import record_model
+from dev_double.core.decision.t_extract import TExtractField
+from dev_double.providers.needle.decision.record_tool import record_model
 
 FIELDS = {
     "vendor": TExtractField("string", "Company name."),

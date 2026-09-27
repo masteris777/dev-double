@@ -8,15 +8,15 @@ import pytest
 from _shared.resources import OLLAMA_MODEL, OLLAMA_URL, has_ollama_model
 from _shared.timing import timed
 
-from stunt_double.core.decision.decider_basic_impl import DeciderBasicImpl
-from stunt_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
-from stunt_double.core.decision.errors import EngineError
-from stunt_double.core.decision.i_generator import IGenerator
-from stunt_double.core.decision.t_extract import TExtractField, TExtractRequest
-from stunt_double.core.decision.t_generate import TGenerateQuery
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
-from stunt_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
+from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
+from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
+from dev_double.core.decision.errors import EngineError
+from dev_double.core.decision.i_generator import IGenerator
+from dev_double.core.decision.t_extract import TExtractField, TExtractRequest
+from dev_double.core.decision.t_generate import TGenerateQuery
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+from dev_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
 
 QUERY = TGenerateQuery(system="s", user="u", max_tokens=64)
 

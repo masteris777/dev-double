@@ -1,6 +1,6 @@
 import pytest
 
-from stunt_double.apps.cli.main import main
+from dev_double.apps.cli.main import main
 
 
 def test_doctor_with_mock_engine(capsys):

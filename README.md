@@ -1,4 +1,4 @@
-# stunt-double
+# dev-double
 
 A local stand-in for System 1 decision models, so you can build your harness before the real model is approved.
 
@@ -8,11 +8,11 @@ System 1 models such as Jev, Kev, and Laya took everyone by storm. They don't wr
 
 Many companies can't use them yet. A new model has to pass security review and whitelisting first, and some teams need it to run on-prem so no context leaves the network. That takes months, and in the meantime development stops: you can't build a harness around an API you're not allowed to call.
 
-stunt-double fills that gap. It serves decision endpoints with the same shape of output (a typed answer, a probability for every option, and a confidence score), and a model you're already allowed to use does the work underneath. Your team writes the routing, guardrails, gates, and thresholds now. When the real model is approved, you swap the engine and keep everything you built.
+dev-double fills that gap. It serves decision endpoints with the same shape of output (a typed answer, a probability for every option, and a confidence score), and a model you're already allowed to use does the work underneath. Your team writes the routing, guardrails, gates, and thresholds now. When the real model is approved, you swap the engine and keep everything you built.
 
-Kev and Laya are open-weight System 1 models you can host yourself. If your company can approve and run one of them, use it directly. stunt-double is for when you can't yet: it runs on a model you're already allowed to use.
+Kev and Laya are open-weight System 1 models you can host yourself. If your company can approve and run one of them, use it directly. dev-double is for when you can't yet: it runs on a model you're already allowed to use.
 
-Like a stunt double on a film set, it stands in while the star isn't available. It's slower and less accurate than a purpose-built decision model, but it lets the work go on.
+Like a test double in your unit tests, it stands in for the real dependency. It's slower and less accurate than a purpose-built decision model, but it has the same shape, so your code doesn't change when the real one arrives, and the work goes on.
 
 **Any model behind an OpenAI-compatible API works as the engine.** We develop and test with Qwen 2.5 on a local GPU through Ollama. vLLM, llama.cpp, and LM Studio work the same way, and so can a hosted small model, such as one from OpenAI or Anthropic, if your company has already approved it (see [Choosing a model](#choosing-a-model)).
 
@@ -23,11 +23,11 @@ Like a stunt double on a film set, it stands in while the star isn't available. 
 ollama pull qwen2.5:7b      # ~4.7 GB; qwen2.5:3b (~1.9 GB) if you're short on memory
 
 # 2. Install and check the model works
-pip install git+https://github.com/masteris777/stunt-double
-stunt-double doctor
+pip install git+https://github.com/masteris777/dev-double
+dev-double doctor
 
 # 3. Serve
-stunt-double serve            # http://127.0.0.1:8787, interactive docs at /docs
+dev-double serve            # http://127.0.0.1:8787, interactive docs at /docs
 ```
 
 ```bash
@@ -46,7 +46,7 @@ curl -s localhost:8787/v1/route -H 'content-type: application/json' \
 
 (Numbers are illustrative.)
 
-No model server yet? `stunt-double serve --engine mock` answers from word overlap. It's instant and deterministic; use it for CI, never for quality.
+No model server yet? `dev-double serve --engine mock` answers from word overlap. It's instant and deterministic; use it for CI, never for quality.
 
 ## Endpoints
 
@@ -148,9 +148,9 @@ Fields are `string`, `number`, `integer`, `boolean`, or `enum` (with `options`: 
 Decide the thresholds in code, not in a prompt:
 
 ```python
-from stunt_double.client import StuntDouble
+from dev_double.client import DevDouble
 
-sd = StuntDouble()
+sd = DevDouble()
 g = sd.gate("send_email", {"to": "all-staff@corp.com"}, context="User asked to draft a reply to Bob.")
 if g["decision"] == "allow" and g["confidence"] > 0.9:
     run_tool()
@@ -162,7 +162,7 @@ else:
 
 ## How it works
 
-Each question becomes one prompt that asks the question, shows the input, asks the question again, and ends with "reply with exactly one label": the option name for choices, a digit for scale levels, yes or no for binary. The model generates at most a few tokens. stunt-double reads the probabilities the model assigned to each label's tokens (`logprobs`) and renormalizes them. So the probabilities come from the model itself, not from a number the model writes down. That is also why it's much faster than asking an LLM for JSON.
+Each question becomes one prompt that asks the question, shows the input, asks the question again, and ends with "reply with exactly one label": the option name for choices, a digit for scale levels, yes or no for binary. The model generates at most a few tokens. dev-double reads the probabilities the model assigned to each label's tokens (`logprobs`) and renormalizes them. So the probabilities come from the model itself, not from a number the model writes down. That is also why it's much faster than asking an LLM for JSON.
 
 Two details that matter with small models:
 
@@ -186,7 +186,7 @@ Build your harness knowing these:
 
 ## Choosing a model
 
-stunt-double talks to any server with an OpenAI-compatible `/v1/chat/completions` endpoint. What matters is whether that server returns **logprobs** (the probability of each token), because the probabilities in every answer come from them.
+dev-double talks to any server with an OpenAI-compatible `/v1/chat/completions` endpoint. What matters is whether that server returns **logprobs** (the probability of each token), because the probabilities in every answer come from them.
 
 | Engine | Logprobs | Notes |
 |---|---|---|
@@ -199,7 +199,7 @@ stunt-double talks to any server with an OpenAI-compatible `/v1/chat/completions
 
 Good local choices: Qwen 2.5 (7B recommended, 3B if memory is tight), Llama 3.x, Gemma 3, Phi-4-mini, Mistral.
 
-A hosted model sends your input to that provider. Use one only if your company has already approved it for this data; the point of stunt-double is to not need the unapproved model.
+A hosted model sends your input to that provider. Use one only if your company has already approved it for this data; the point of dev-double is to not need the unapproved model.
 
 ### Which model for which use case
 
@@ -258,8 +258,8 @@ Twenty cases per use case is still small; add cases from your own domain before 
 
 ## Switching to the real engine later
 
-1. Keep stunt-double behind your own small interface, for example `Decisions.route(...)`, `Decisions.gate(...)`.
-2. Record real traffic while you develop: `stunt-double serve --record calls.jsonl`. Each line holds the request, response, and latency.
+1. Keep dev-double behind your own small interface, for example `Decisions.route(...)`, `Decisions.gate(...)`.
+2. Record real traffic while you develop: `dev-double serve --record calls.jsonl`. Each line holds the request, response, and latency.
 3. When the real engine is approved, implement the same interface with its SDK, replay `calls.jsonl` through both, and compare decisions and latency before switching.
 
 The rest of your harness (thresholds aside) does not change.
@@ -268,19 +268,19 @@ The rest of your harness (thresholds aside) does not change.
 
 | Flag | Environment variable | Default |
 |---|---|---|
-| `--engine` | `STUNT_DOUBLE_ENGINE` | `openai` (any OpenAI-compatible server), `mock` (word overlap, for CI), `systemone` (a self-hosted Kev or Laya server), or `needle` (Cactus Needle on-device; `pip install "stunt-double[needle]"`) |
-| `--base-url` | `STUNT_DOUBLE_BASE_URL` | `http://localhost:11434/v1` (Ollama) |
-| `--model` | `STUNT_DOUBLE_MODEL` | `qwen2.5:7b` |
-| `--api-key` | `STUNT_DOUBLE_API_KEY` | none |
-| `--max-concurrency` | `STUNT_DOUBLE_MAX_CONCURRENCY` | `4` |
-| `--systemone-url` | `STUNT_DOUBLE_SYSTEMONE_URL` | `http://localhost:8000` (serves `POST /v1/systemone`) |
-| | `STUNT_DOUBLE_TIMEOUT` | `120` seconds per model call |
-| `--record` | `STUNT_DOUBLE_RECORD` | off |
+| `--engine` | `DEV_DOUBLE_ENGINE` | `openai` (any OpenAI-compatible server), `mock` (word overlap, for CI), `systemone` (a self-hosted Kev or Laya server), or `needle` (Cactus Needle on-device; `pip install "dev-double[needle]"`) |
+| `--base-url` | `DEV_DOUBLE_BASE_URL` | `http://localhost:11434/v1` (Ollama) |
+| `--model` | `DEV_DOUBLE_MODEL` | `qwen2.5:7b` |
+| `--api-key` | `DEV_DOUBLE_API_KEY` | none |
+| `--max-concurrency` | `DEV_DOUBLE_MAX_CONCURRENCY` | `4` |
+| `--systemone-url` | `DEV_DOUBLE_SYSTEMONE_URL` | `http://localhost:8000` (serves `POST /v1/systemone`) |
+| | `DEV_DOUBLE_TIMEOUT` | `120` seconds per model call |
+| `--record` | `DEV_DOUBLE_RECORD` | off |
 | `--host`, `--port` | | `127.0.0.1`, `8787` |
 
 For vLLM: `--base-url http://localhost:8000/v1 --model Qwen/Qwen2.5-7B-Instruct`. For llama.cpp server: `--base-url http://localhost:8080/v1`.
 
-`--engine systemone` and `--engine needle` send each question to a model that answers typed questions natively, with no stunt-double prompt, so you can compare stunt-double with the real thing behind the same endpoints. Needle has no probability for every option: it returns one confidence for its pick, and the other options share the rest evenly. It reranks with embeddings. Telemetry is off by default (`NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`), and `NEEDLE3_LIB_PATH` points it at a local build.
+`--engine systemone` and `--engine needle` send each question to a model that answers typed questions natively, with no dev-double prompt, so you can compare dev-double with the real thing behind the same endpoints. Needle has no probability for every option: it returns one confidence for its pick, and the other options share the rest evenly. It reranks with embeddings. Telemetry is off by default (`NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`), and `NEEDLE3_LIB_PATH` points it at a local build.
 
 The server has no authentication. Keep it on localhost or behind your own gateway.
 
@@ -305,9 +305,9 @@ The code has three layers, and imports only go inward:
 apps ──→ core ←── providers
 ```
 
-- **`stunt_double/core/decision/`**: the domain, with no third-party imports (no httpx, pydantic, time, or os). It holds the interfaces (`IEngine`, `IDecider`, `IClock`, `IIdProvider`, `IDecisionService`, and the optional capabilities `IReranker`, `IGenerator`, `IRecordReader`, `IExtractor`), the domain types (`TChoiceQuestion`, `TRouteRequest`, ...), the prompts, the label scoring, and the use cases (`DecisionServiceBasicImpl`). `DeciderBasicImpl` turns a question into a prompt and asks an `IEngine`.
-- **`stunt_double/providers/<name>/decision/`**: one folder per technology. Each implements core interfaces and depends only on core, never on another provider. `openai` (`EngineOpenAIImpl`), `mock` (`EngineMockImpl`, plus a deterministic clock and id provider for tests), `std` (the real clock and UUIDs), `systemone` (`DeciderSystemOneImpl`), and `needle` (`DeciderNeedleImpl`).
-- **`stunt_double/apps/`**: `server/` (FastAPI, the pydantic transport schemas, the recorder), `cli/`, `client/` (the `StuntDouble` SDK), and `composition.py`, the only place that picks implementations from the settings.
+- **`dev_double/core/decision/`**: the domain, with no third-party imports (no httpx, pydantic, time, or os). It holds the interfaces (`IEngine`, `IDecider`, `IClock`, `IIdProvider`, `IDecisionService`, and the optional capabilities `IReranker`, `IGenerator`, `IRecordReader`, `IExtractor`), the domain types (`TChoiceQuestion`, `TRouteRequest`, ...), the prompts, the label scoring, and the use cases (`DecisionServiceBasicImpl`). `DeciderBasicImpl` turns a question into a prompt and asks an `IEngine`.
+- **`dev_double/providers/<name>/decision/`**: one folder per technology. Each implements core interfaces and depends only on core, never on another provider. `openai` (`EngineOpenAIImpl`), `mock` (`EngineMockImpl`, plus a deterministic clock and id provider for tests), `std` (the real clock and UUIDs), `systemone` (`DeciderSystemOneImpl`), and `needle` (`DeciderNeedleImpl`).
+- **`dev_double/apps/`**: `server/` (FastAPI, the pydantic transport schemas, the recorder), `cli/`, `client/` (the `DevDouble` SDK), and `composition.py`, the only place that picks implementations from the settings.
 
 To add an engine:
 
@@ -322,4 +322,4 @@ Built by Marijus Masteika with [Claude](https://claude.com/claude-code) (Anthrop
 
 ## License and trademarks
 
-MIT. stunt-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI (Jev), the Kev project, Convai Innovations (Laya), or Cactus Compute (Needle). stunt-double does not serve their APIs; `--engine systemone` and `--engine needle` are clients, for comparison. Those names belong to their owners and are mentioned only to describe what stunt-double stands in for or is compared with.
+MIT. dev-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI (Jev), the Kev project, Convai Innovations (Laya), or Cactus Compute (Needle). dev-double does not serve their APIs; `--engine systemone` and `--engine needle` are clients, for comparison. Those names belong to their owners and are mentioned only to describe what dev-double stands in for or is compared with.

@@ -1,15 +1,15 @@
 import pytest
 
-from stunt_double.core.decision.t_extract import (
+from dev_double.core.decision.t_extract import (
     MAX_FIELDS,
     TExtractField,
     TExtractRequest,
     TExtractResponse,
     TFieldValue,
 )
-from stunt_double.core.decision.t_meta import TMeta
-from stunt_double.core.decision.t_question import MAX_OPTIONS
-from stunt_double.core.decision.t_usage import TUsage
+from dev_double.core.decision.t_meta import TMeta
+from dev_double.core.decision.t_question import MAX_OPTIONS
+from dev_double.core.decision.t_usage import TUsage
 
 
 def test_field_types():

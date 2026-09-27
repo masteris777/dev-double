@@ -1,9 +1,9 @@
 import pytest
 
-from stunt_double.core.decision.t_label_query import TLabelQuery
-from stunt_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
-from stunt_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
+from dev_double.core.decision.t_label_query import TLabelQuery
+from dev_double.providers.mock.decision.clock_mock_impl import ClockMockImpl
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.providers.mock.decision.id_provider_mock_impl import IdProviderMockImpl
 
 
 def test_clock_steps_and_advances():
@@ -36,7 +36,7 @@ async def test_engine_scores_by_word_overlap():
 async def test_engine_generates_a_json_record_from_labelled_lines():
     import json
 
-    from stunt_double.core.decision.t_generate import TGenerateQuery
+    from dev_double.core.decision.t_generate import TGenerateQuery
 
     text = 'Invoice\nDue date: 2026-10-01\n{\n  "vendor": "Acme Corp",\n}'
     q = TGenerateQuery(

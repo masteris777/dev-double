@@ -1,7 +1,7 @@
 import uuid
 
-from stunt_double.providers.std.decision.clock_std_impl import ClockStdImpl
-from stunt_double.providers.std.decision.id_provider_std_impl import IdProviderStdImpl
+from dev_double.providers.std.decision.clock_std_impl import ClockStdImpl
+from dev_double.providers.std.decision.id_provider_std_impl import IdProviderStdImpl
 
 
 def test_clock_is_monotonic():

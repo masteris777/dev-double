@@ -3,10 +3,10 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from stunt_double.apps.config import Settings
-from stunt_double.apps.server.app import create_app
-from stunt_double.core.decision.errors import EngineError
-from stunt_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
+from dev_double.apps.config import Settings
+from dev_double.apps.server.app import create_app
+from dev_double.core.decision.errors import EngineError
+from dev_double.providers.mock.decision.engine_mock_impl import EngineMockImpl
 
 
 @pytest.fixture

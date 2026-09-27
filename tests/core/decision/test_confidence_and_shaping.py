@@ -1,9 +1,9 @@
 import pytest
 
-from stunt_double.core.decision.answer_shaping import question_labels, shape_answer
-from stunt_double.core.decision.confidence import confidence
-from stunt_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
+from dev_double.core.decision.answer_shaping import question_labels, shape_answer
+from dev_double.core.decision.confidence import confidence
+from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion, TScaleQuestion
 
 
 def test_confidence():

@@ -6,11 +6,11 @@ import pytest
 from _shared.resources import OLLAMA_MODEL, OLLAMA_URL, has_ollama_model
 from _shared.timing import timed
 
-from stunt_double.core.decision import prompts
-from stunt_double.core.decision.errors import EngineError
-from stunt_double.core.decision.t_label_query import TLabelQuery
-from stunt_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
-from stunt_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
+from dev_double.core.decision import prompts
+from dev_double.core.decision.errors import EngineError
+from dev_double.core.decision.t_label_query import TLabelQuery
+from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
+from dev_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
 
 
 def lp(p: float) -> float:
