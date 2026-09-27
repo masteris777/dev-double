@@ -1,0 +1,40 @@
+[project]
+name = "stunt-double"
+version = "0.1.0"
+description = "A local stand-in for fast decision-model and reranking APIs, powered by a small LLM you already run."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "stunt-double contributors" }]
+keywords = ["llm", "classification", "rerank", "guardrails", "ollama", "local", "mock"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "fastapi>=0.110",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+    "uvicorn>=0.29",
+]
+
+[project.scripts]
+stunt-double = "stunt_double.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stunt_double"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
