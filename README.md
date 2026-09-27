@@ -46,7 +46,7 @@ curl -s localhost:8787/v1/route -H 'content-type: application/json' \
 
 (Numbers are illustrative.)
 
-No model server yet? `stunt-double serve --engine fake` answers from word overlap. It's instant and deterministic; use it for CI, never for quality.
+No model server yet? `stunt-double serve --engine mock` answers from word overlap. It's instant and deterministic; use it for CI, never for quality.
 
 ## Endpoints
 
@@ -142,7 +142,7 @@ Build your harness knowing these:
 - **Latency.** A local 7B model takes roughly 250 ms per question on a good GPU (a rerank of 4 documents about 1 s), several seconds on CPU. Purpose-built decision models aim much lower. Don't design around the slowness: no caching or batching workarounds a real engine won't need. `meta.latency_ms` shows what you're paying.
 - **Calibration.** Probabilities from a small general model are only roughly calibrated. Thresholds you tune now (like `confidence > 0.9`) will need re-tuning on the real engine. Keep a labeled set of examples so you can re-tune in an afternoon.
 - **Accuracy.** Small models miss nuance. See [Measured results](#measured-results) for what works and what doesn't, and run the evals on your own model before relying on a use case.
-- **Repeatability.** Answers are deterministic while a model stays loaded, but can shift slightly after the model server reloads it. Borderline cases may flip. Don't write tests that assert exact probabilities from a real model; use `--engine fake` for that.
+- **Repeatability.** Answers are deterministic while a model stays loaded, but can shift slightly after the model server reloads it. Borderline cases may flip. Don't write tests that assert exact probabilities from a real model; use `--engine mock` for that.
 - **Limits.** Up to 20 options per choice question (option keys must differ ignoring case and punctuation), 10 scale levels, text input only.
 - **Models.** Use non-thinking instruct models. Reasoning models that write out their thinking first (`<think>`) don't work, because the answer is no longer in the first tokens.
 
@@ -156,40 +156,64 @@ stunt-double talks to any server with an OpenAI-compatible `/v1/chat/completions
 | vLLM, llama.cpp server, LM Studio | yes | `--base-url http://localhost:8000/v1` (vLLM) or `:8080/v1` (llama.cpp). |
 | OpenAI and other hosted APIs | on non-reasoning models | `--base-url https://api.openai.com/v1 --api-key ... --model <small non-reasoning model>`. Not tested yet. |
 | Anthropic | no | Via its OpenAI-compatible endpoint (`--base-url https://api.anthropic.com/v1/`). Not tested yet. With no logprobs, answers are 0 or 1 and `meta.warnings` says so. |
+| Kev, Laya (`--engine systemone`) | native | Open-weight System 1 models, self-hosted. Tested: Kev 0.8B, Laya. |
+| Cactus Needle (`--engine needle`) | one confidence per pick | Tiny on-device tool-calling model. Tested; not a good fit (see below). On Windows, cactus-needle 3.0.5 asks for an engine build that isn't published: download the 3.0.1 engine from Hugging Face and set `NEEDLE3_LIB_PATH`. |
 
 Good local choices: Qwen 2.5 (7B recommended, 3B if memory is tight), Llama 3.x, Gemma 3, Phi-4-mini, Mistral.
 
 A hosted model sends your input to that provider. Use one only if your company has already approved it for this data; the point of stunt-double is to not need the unapproved model.
 
-### Measured results
+### Which model for which use case
 
-`evals/run.py` holds 57 labeled cases across all use cases. Run it against any model:
+Most teams need one use case, not all nine, so pick per use case. `evals/run.py` holds 120 labeled cases, 20 per use case, including deliberately hard ones (rerank distractors that share the query's words, answers that are subtly wrong). A model counts as **good enough** for a use case at 17/20 (85%) or better.
 
-```bash
-uv run python evals/run.py --model qwen2.5:7b --model qwen2.5:3b
-```
+| Use case | Recommended | Also good enough | Not good enough |
+|---|---|---|---|
+| guard (injection, abuse) | **qwen2.5:7b** (18/20) | none | qwen2.5:3b 12, Kev 13, Laya 12 |
+| route | **qwen2.5:7b** (18/20) | none | qwen2.5:3b 16, Kev 14, Laya 9 |
+| gate | **qwen2.5:7b** (17/20, see caution below) | none | Laya 14, qwen2.5:3b 11, Kev 10 |
+| classify (inbox triage) | **Kev 0.8B** (17/20) | none; qwen2.5:7b is just under (16/20) | qwen2.5:3b 15, Laya 12 |
+| judge | **qwen2.5:7b** (18/20) | none | qwen2.5:3b 15, Kev 10, Laya 9 |
+| rerank | **qwen2.5:3b** (20/20) | qwen2.5:7b 20, Laya 20, Kev 19 | Needle 10 |
 
-Results on a local GPU (acc = top answer correct; p_ok = mean probability on the correct answer):
+Full results, on an RTX 4070 Laptop GPU (8 GB), one model loaded at a time:
 
-| Use case | qwen2.5:7b | qwen2.5:3b |
-|---|---|---|
-| guard (injection, abuse) | 20/20, p_ok 1.00 | 15/20, p_ok 0.74 |
-| route | 8/9, 0.89 | 8/9, 0.85 |
-| gate | 7/8, 0.85 | 5/8, 0.63 |
-| classify (inbox triage) | 6/8, 0.77 | 6/8, 0.78 |
-| judge | 8/8, 1.00 | 7/8, 1.00 |
-| rerank | 4/4, 1.00 | 4/4, 1.00 |
-| **total** | **53/57** | **45/57** |
+| Use case | qwen2.5:7b | qwen2.5:3b | Laya | Kev 0.8B | Needle |
+|---|---|---|---|---|---|
+| guard | **18**/20 | 12 | 12 | 13 | 0 |
+| route | **18** | 16 | 9 | 14 | 8 |
+| gate | **17** | 11 | 14 | 10 | 7 |
+| classify | 16 | 15 | 12 | **17** | 5 |
+| judge | **18** | 15 | 9 | 10 | 2 |
+| rerank | **20** | **20** | **20** | **19** | 10 |
+| **total** | **107/120** | 89 | 76 | 83 | 32 |
+| median latency per call | 260–300 ms | 250–260 ms | 25–50 ms | 30–45 ms | 55–390 ms |
 
-Median latency is 230–290 ms per call for both models on this GPU (rerank: about 1 s for 4 documents).
+Rerank latency is per query of 4 documents: about 1.1 s for the Qwen models, 90–110 ms for Laya and Kev. Guard asks two questions per input, so it takes about twice as long.
 
 What that means in practice:
 
-- **qwen2.5:7b is good enough for development** in every use case. Its misses: it allowed an 8,400 transfer to a new payee when the user asked to pay a bill, routed a legal-conflict question to `medium`, and marked two non-urgent emails as urgent.
-- **qwen2.5:3b** is fine for routing, judging, and reranking, but it mixes up guard policies (flags a bomb request as prompt injection), misses role-play jailbreaks, and is erratic on tool gating.
-- **Be careful with high confidence.** The 7B allowed the 8,400 transfer with near-certainty. Put hard limits (amounts, destructive tools) in code, not only in a threshold.
+- **qwen2.5:7b is the default** and is good enough for every use case except inbox triage, where it rates polite but non-urgent requests as urgent.
+- **qwen2.5:3b is enough for rerank.** It's also fine for rough routing, but it mixes up guard policies and wrongly denies harmless tool calls.
+- **Be careful with confident mistakes in gate.** The 7B allowed an 8,400 transfer to a new payee, an email to the whole company, and a production deploy, all with near-certainty; each should have asked a human. Put hard limits (amounts, recipients, destructive tools) in code, not only in a confidence threshold.
+- **Kev and Laya are open-weight System 1 models, and far faster** (10x). Laya ranks documents perfectly and Kev is the best at triage. Elsewhere they fall short here, but three caveats apply:
+  - They got the same question wording as the LLMs, which wasn't tuned for them.
+  - Only Kev's 0.8B model fits in 8 GB (the 4B needs 32 GB).
+  - Kev ran without its fast kernels, which aren't available on Windows.
 
-The set is small; treat it as a smoke test, and add cases from your own domain.
+  If your company can approve one of them, test it on your own cases with `--engine systemone`.
+- **Needle is not a decision model.** It's a tiny on-device model that *writes* tool calls. Asked to classify, it often returns no call at all, and embedding-based rerank only reached 10/20. Its fit is the step before a decision model: Needle proposes the tool call on the device, and `/v1/gate` decides whether to run it.
+
+Reproduce any column (one model at a time; load only one model into GPU memory):
+
+```bash
+uv run python evals/run.py --model qwen2.5:7b                      # Ollama
+uv run python evals/run.py --model laya=http://localhost:8000      # laya-serve
+uv run python evals/run.py --model kev=http://localhost:8009       # python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
+uv run --extra needle python evals/run.py --model needle           # set NEEDLE_TELEMETRY=0
+```
+
+Twenty cases per use case is still small; add cases from your own domain before relying on a result.
 
 ## Switching to the real engine later
 
@@ -203,15 +227,19 @@ The rest of your harness (thresholds aside) does not change.
 
 | Flag | Environment variable | Default |
 |---|---|---|
-| `--engine` | `STUNT_DOUBLE_ENGINE` | `openai` (any OpenAI-compatible server) or `fake` |
+| `--engine` | `STUNT_DOUBLE_ENGINE` | `openai` (any OpenAI-compatible server), `mock` (word overlap, for CI), `systemone` (a self-hosted Kev or Laya server), or `needle` (Cactus Needle on-device; `pip install "stunt-double[needle]"`) |
 | `--base-url` | `STUNT_DOUBLE_BASE_URL` | `http://localhost:11434/v1` (Ollama) |
 | `--model` | `STUNT_DOUBLE_MODEL` | `qwen2.5:7b` |
 | `--api-key` | `STUNT_DOUBLE_API_KEY` | none |
 | `--max-concurrency` | `STUNT_DOUBLE_MAX_CONCURRENCY` | `4` |
+| `--systemone-url` | `STUNT_DOUBLE_SYSTEMONE_URL` | `http://localhost:8000` (serves `POST /v1/systemone`) |
+| | `STUNT_DOUBLE_TIMEOUT` | `120` seconds per model call |
 | `--record` | `STUNT_DOUBLE_RECORD` | off |
 | `--host`, `--port` | | `127.0.0.1`, `8787` |
 
 For vLLM: `--base-url http://localhost:8000/v1 --model Qwen/Qwen2.5-7B-Instruct`. For llama.cpp server: `--base-url http://localhost:8080/v1`.
+
+`--engine systemone` and `--engine needle` send each question to a model that answers typed questions natively, with no stunt-double prompt, so you can compare stunt-double with the real thing behind the same endpoints. Needle has no probability for every option: it returns one confidence for its pick, and the other options share the rest evenly. It reranks with embeddings. Telemetry is off by default (`NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`), and `NEEDLE3_LIB_PATH` points it at a local build.
 
 The server has no authentication. Keep it on localhost or behind your own gateway.
 
@@ -219,13 +247,34 @@ The server has no authentication. Keep it on localhost or behind your own gatewa
 
 ```bash
 uv sync
-uv run pytest                                      # fast, uses the fake engine
+uv run pytest                                      # unit + e2e on the mock engine; integration tests
+                                                   # run when Ollama (qwen2.5:7b) or a System 1
+                                                   # server on :8000 answers, else skip
 uv run python evals/run.py --model qwen2.5:7b      # quality, needs a model server
 uv run python evals/run.py --model qwen2.5:7b --only gate   # one use case
 ```
 
 Run the evals on at least two models before and after any prompt change: a wording that helps one model can hurt another.
 
+## Architecture
+
+The code has three layers, and imports only go inward:
+
+```
+apps ──→ core ←── providers
+```
+
+- **`stunt_double/core/decision/`**: the domain, with no third-party imports (no httpx, pydantic, time, or os). It holds the interfaces (`IEngine`, `IDecider`, `IReranker`, `IClock`, `IIdProvider`, `IDecisionService`), the domain types (`TChoiceQuestion`, `TRouteRequest`, ...), the prompts, the label scoring, and the use cases (`DecisionServiceBasicImpl`). `DeciderBasicImpl` turns a question into a prompt and asks an `IEngine`.
+- **`stunt_double/providers/<name>/decision/`**: one folder per technology. Each implements core interfaces and depends only on core, never on another provider. `openai` (`EngineOpenAIImpl`), `mock` (`EngineMockImpl`, plus a deterministic clock and id provider for tests), `std` (the real clock and UUIDs), `systemone` (`DeciderSystemOneImpl`), and `needle` (`DeciderNeedleImpl`).
+- **`stunt_double/apps/`**: `server/` (FastAPI, the pydantic transport schemas, the recorder), `cli/`, `client/` (the `StuntDouble` SDK), and `composition.py`, the only place that picks implementations from the settings.
+
+To add an engine:
+
+- If it scores labels from a prompt, implement `IEngine` in `providers/<name>/decision/engine_<name>_impl.py`.
+- If it answers typed questions natively, implement `IDecider` in `providers/<name>/decision/decider_<name>_impl.py`, and also `IReranker` if it can rerank without yes/no questions.
+
+Then add a branch in `apps/composition.py` and the name to `ENGINES` in `apps/config.py`, and put its tests in `tests/providers/<name>/`. `tests/` mirrors `src/`. `tests/core/test_dependency_rule.py` fails if core imports anything external or if one provider imports another.
+
 ## License and trademarks
 
-MIT. stunt-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI (Jev), the Kev project, or Convai Innovations (Laya), and it does not implement their APIs. Those names belong to their owners and are mentioned only to describe what stunt-double stands in for.
+MIT. stunt-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI (Jev), the Kev project, Convai Innovations (Laya), or Cactus Compute (Needle). stunt-double does not serve their APIs; `--engine systemone` and `--engine needle` are clients, for comparison. Those names belong to their owners and are mentioned only to describe what stunt-double stands in for or is compared with.

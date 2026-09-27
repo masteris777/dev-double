@@ -23,7 +23,10 @@ dependencies = [
 ]
 
 [project.scripts]
-stunt-double = "stunt_double.cli:main"
+stunt-double = "stunt_double.apps.cli.main:main"
+
+[project.optional-dependencies]
+needle = ["cactus-needle"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
@@ -38,3 +41,4 @@ packages = ["src/stunt_double"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["tests"]
