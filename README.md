@@ -4,11 +4,13 @@ A local stand-in for System 1 decision models, so you can build your harness bef
 
 ## Why this exists
 
-System 1 models such as Jev took everyone by storm. They don't write text; they return a typed decision with a calibrated probability in milliseconds. Teams use them for model routing, guardrails, tool-call gating, inbox triage, reranking, LLM evals, bulk labeling, real-time control, and confidence gates.
+System 1 models such as Jev, Kev, and Laya took everyone by storm. They don't write text; they return a typed decision with a calibrated probability in milliseconds. Teams use them for model routing, guardrails, tool-call gating, inbox triage, reranking, LLM evals, bulk labeling, real-time control, and confidence gates.
 
 Many companies can't use them yet. A new model has to pass security review and whitelisting first, and some teams need it to run on-prem so no context leaves the network. That takes months, and in the meantime development stops: you can't build a harness around an API you're not allowed to call.
 
 stunt-double fills that gap. It serves decision endpoints with the same shape of output (a typed answer, a probability for every option, and a confidence score), and a model you're already allowed to use does the work underneath. Your team writes the routing, guardrails, gates, and thresholds now. When the real model is approved, you swap the engine and keep everything you built.
+
+Kev and Laya are open-weight System 1 models you can host yourself. If your company can approve and run one of them, use it directly. stunt-double is for when you can't yet: it runs on a model you're already allowed to use.
 
 Like a stunt double on a film set, it stands in while the star isn't available. It's slower and less accurate than a purpose-built decision model, but it lets the work go on.
 
@@ -21,7 +23,7 @@ Like a stunt double on a film set, it stands in while the star isn't available. 
 ollama pull qwen2.5:7b      # ~4.7 GB; qwen2.5:3b (~1.9 GB) if you're short on memory
 
 # 2. Install and check the model works
-pip install stunt-double
+pip install git+https://github.com/masteris777/stunt-double
 stunt-double doctor
 
 # 3. Serve
@@ -226,4 +228,4 @@ Run the evals on at least two models before and after any prompt change: a wordi
 
 ## License and trademarks
 
-MIT. stunt-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI, and it does not implement the Jev API. Jev is a trademark of its owner, mentioned only to describe what stunt-double stands in for. Product names mentioned anywhere in this project belong to their owners.
+MIT. stunt-double is an independent project with its own API design. It is not affiliated with or endorsed by TypeSafe AI (Jev), the Kev project, or Convai Innovations (Laya), and it does not implement their APIs. Those names belong to their owners and are mentioned only to describe what stunt-double stands in for.

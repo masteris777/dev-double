@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-authors = [{ name = "stunt-double contributors" }]
+authors = [{ name = "Marijus Masteika" }]
 keywords = ["llm", "classification", "rerank", "guardrails", "ollama", "local", "mock"]
 classifiers = [
     "Development Status :: 3 - Alpha",
