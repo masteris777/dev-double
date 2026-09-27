@@ -23,7 +23,7 @@ Like a test double in your unit tests, it stands in for the real dependency. It'
 ollama pull qwen2.5:7b      # ~4.7 GB; qwen2.5:3b (~1.9 GB) if you're short on memory
 
 # 2. Install and check the model works
-pip install git+https://github.com/masteris777/dev-double
+pip install dev-double
 dev-double doctor
 
 # 3. Serve
