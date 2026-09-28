@@ -17,6 +17,9 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.secrets/
+*.key
+*Recovery-Codes*
 
 # Local data: recorded traffic (--record) and eval reports (--json)
 *.jsonl
