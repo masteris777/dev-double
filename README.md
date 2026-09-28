@@ -1,20 +1,20 @@
 # dev-double
 
-A local stand-in for System 1 decision models, so you can build your harness before the real model is approved.
+A local stand-in for System 1 decision models, so you can build your harness now, on a model you run locally, and swap in a stronger one later.
 
 ## Why this exists
 
 System 1 models such as Jev, Kev, and Laya took everyone by storm. They don't write text; they return a typed decision with a calibrated probability in milliseconds. Teams use them for model routing, guardrails, tool-call gating, inbox triage, reranking, LLM evals, bulk labeling, real-time control, and confidence gates.
 
-Many companies can't use them yet. A new model has to pass security review and whitelisting first, and some teams need it to run on-prem so no context leaves the network. That takes months, and in the meantime development stops: you can't build a harness around an API you're not allowed to call.
+The inputs these decisions run on are often sensitive: customer messages, internal documents, the arguments of a tool call. You may not want that data going to an external API. And a System 1 model you can run locally, or fully trust, may not be good enough or available yet: it may not run on your hardware, you may not trust it yet, or a stronger open-weight one may not exist yet. Waiting means you can't build the harness around it in the meantime.
 
-dev-double fills that gap. It serves decision endpoints with the same shape of output (a typed answer, a probability for every option, and a confidence score), and a model you're already allowed to use does the work underneath. Your team writes the routing, guardrails, gates, and thresholds now. When the real model is approved, you swap the engine and keep everything you built.
+dev-double fills that gap. It serves decision endpoints with the same shape of output (a typed answer, a probability for every option, and a confidence score), and a model you already run locally (or already trust) does the work underneath. Your team writes the routing, guardrails, gates, and thresholds now. When a stronger local or trusted model is available, you swap the engine and keep everything you built.
 
-Kev and Laya are open-weight System 1 models you can host yourself. If your company can approve and run one of them, use it directly. dev-double is for when you can't yet: it runs on a model you're already allowed to use.
+Kev and Laya are open-weight System 1 models you can host yourself. If you can host one of them and it fits your needs, use it directly. dev-double is for when you can't yet: it runs on a general model you already have.
 
 Like a test double in your unit tests, it stands in for the real dependency. It's slower and less accurate than a purpose-built decision model, but it has the same shape, so your code doesn't change when the real one arrives, and the work goes on.
 
-**Any model behind an OpenAI-compatible API works as the engine.** We develop and test with Qwen 2.5 on a local GPU through Ollama. vLLM, llama.cpp, and LM Studio work the same way, and so can a hosted small model, such as one from OpenAI or Anthropic, if your company has already approved it (see [Choosing a model](#choosing-a-model)).
+**Any model behind an OpenAI-compatible API works as the engine.** We develop and test with Qwen 2.5 on a local GPU through Ollama. vLLM, llama.cpp, and LM Studio work the same way, and so can a hosted small model, such as one from OpenAI or Anthropic, if you're comfortable sending your data to that provider (see [Choosing a model](#choosing-a-model)).
 
 ## Quick start
 
@@ -199,7 +199,7 @@ dev-double talks to any server with an OpenAI-compatible `/v1/chat/completions` 
 
 Good local choices: Qwen 2.5 (7B recommended, 3B if memory is tight), Llama 3.x, Gemma 3, Phi-4-mini, Mistral.
 
-A hosted model sends your input to that provider. Use one only if your company has already approved it for this data; the point of dev-double is to not need the unapproved model.
+A hosted model sends your input to that provider. Use one only if that data is allowed to leave your machine. The main point of dev-double is to keep sensitive input local.
 
 ### Which model for which use case
 
@@ -241,7 +241,7 @@ What that means in practice:
   - Only Kev's 0.8B model fits in 8 GB (the 4B needs 32 GB).
   - Kev ran without its fast kernels, which aren't available on Windows.
 
-  If your company can approve one of them, test it on your own cases with `--engine systemone`.
+  If you can host one of them, test it on your own cases with `--engine systemone`.
 - **Extraction is close to good enough.** Both Qwen models get about 92% of fields right, but only 15–16 of 20 records completely right. Typical misses: inventing a date from "next summer", leaving out a meeting title that is in the text. Check low-confidence fields, or send them to a human.
 - **Needle is not a decision model.** It's a tiny on-device model that *writes* tool calls. Asked to classify, it often returns no call at all, and embedding-based rerank only reached 10/20. Even on extraction, its home ground, it got 69% of fields right out of the box. Cactus pitches fine-tuning on your own schema, which we didn't test. Its fit is the step before a decision model: Needle proposes the tool call on the device, and `/v1/gate` decides whether to run it.
 
@@ -260,7 +260,7 @@ Twenty cases per use case is still small; add cases from your own domain before 
 
 1. Keep dev-double behind your own small interface, for example `Decisions.route(...)`, `Decisions.gate(...)`.
 2. Record real traffic while you develop: `dev-double serve --record calls.jsonl`. Each line holds the request, response, and latency.
-3. When the real engine is approved, implement the same interface with its SDK, replay `calls.jsonl` through both, and compare decisions and latency before switching.
+3. When a stronger local or trusted engine is available, implement the same interface with its SDK, replay `calls.jsonl` through both, and compare decisions and latency before switching.
 
 The rest of your harness (thresholds aside) does not change.
 
