@@ -72,7 +72,7 @@ Question = Annotated[
 class DecideRequest(BaseModel):
     input: InputValue = Field(description="The content to decide about: text, an object, or a list.")
     questions: dict[str, Question] = Field(min_length=1)
-    model: Optional[str] = Field(None, description="Ignored; the server's configured model is used.")
+    model: Optional[str] = Field(None, description="Ignored; the server's configured model is used (unless it runs with --honor-request-model).")
 
     def to_core(self) -> TDecideRequest:
         questions: dict[str, TQuestion] = {k: q.to_core() for k, q in self.questions.items()}

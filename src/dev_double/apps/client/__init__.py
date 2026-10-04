@@ -1,5 +1,5 @@
 """The sync HTTP SDK client."""
 
-from .http_client import DevDouble
+from .http_client import DevDouble, image_base64
 
-__all__ = ["DevDouble"]
+__all__ = ["DevDouble", "image_base64"]

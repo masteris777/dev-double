@@ -11,16 +11,15 @@ from .i_decider import IDecider
 from .i_decision_service import IDecisionService
 from .i_id_provider import IIdProvider
 from .i_reranker import IReranker
-from .t_answer import TAnswer, TBinaryAnswer, TChoiceAnswer, TScaleAnswer
+from .t_answer import TBinaryAnswer, TChoiceAnswer, TScaleAnswer
 from .t_classify import TClassification, TClassifyRequest, TClassifyResponse
 from .t_decide import TDecideRequest, TDecideResponse
 from .t_extract import TExtractRequest, TExtractResponse
 from .t_gate import TGateRequest, TGateResponse
 from .t_guard import TGuardCheck, TGuardRequest, TGuardResponse
-from .t_input import TInputValue
 from .t_judge import TJudgeRequest, TJudgeResponse
 from .t_meta import TMeta
-from .t_question import TChoiceQuestion, TQuestion
+from .t_question import TChoiceQuestion
 from .t_rerank import TRerankRequest, TRerankResponse, TRerankResult
 from .t_route import TRouteRequest, TRouteResponse
 from .tracker import Tracker
@@ -40,27 +39,24 @@ class DecisionServiceBasicImpl(IDecisionService):
     def model(self) -> str:
         return self.decider.model
 
+    @property
+    def supports_images(self) -> bool:
+        return self.decider.supports_images
+
     async def aclose(self) -> None:
         await self.decider.aclose()
 
     def _tracker(self) -> Tracker:
         return Tracker(self._clock)
 
-    def _meta(self, t: Tracker) -> TMeta:
-        return t.meta(self.decider.name, self.decider.model)
-
-    async def _ask_many(
-        self, value: TInputValue, questions: dict[str, TQuestion], t: Tracker
-    ) -> dict[str, TAnswer]:
-        answers = await asyncio.gather(
-            *(self.decider.ask(value, q, t, label=qid) for qid, q in questions.items())
-        )
-        return dict(zip(questions, answers))
+    def _meta(self, t: Tracker, images: bool = False) -> TMeta:
+        model = self.decider.model_for(True) if images else self.decider.model
+        return t.meta(self.decider.name, model)
 
     async def decide(self, req: TDecideRequest) -> TDecideResponse:
         t = self._tracker()
-        answers = await self._ask_many(req.input, req.questions, t)
-        return TDecideResponse(answers=answers, meta=self._meta(t))
+        answers = await self.decider.ask_many(req.input, req.questions, t, images=req.images)
+        return TDecideResponse(answers=answers, meta=self._meta(t, images=bool(req.images)))
 
     async def route(self, req: TRouteRequest) -> TRouteResponse:
         t = self._tracker()
@@ -70,7 +66,7 @@ class DecisionServiceBasicImpl(IDecisionService):
 
     async def guard(self, req: TGuardRequest) -> TGuardResponse:
         t = self._tracker()
-        answers = await self._ask_many(req.input, uq.guard_questions(req), t)
+        answers = await self.decider.ask_many(req.input, uq.guard_questions(req), t)
         checks = {}
         for name, a in answers.items():
             assert isinstance(a, TBinaryAnswer)

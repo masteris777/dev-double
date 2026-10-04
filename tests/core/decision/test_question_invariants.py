@@ -16,7 +16,7 @@ from dev_double.core.decision.t_rerank import TRerankRequest
 from dev_double.core.decision.t_route import TRouteRequest
 
 
-def test_choice_needs_2_to_20_options():
+def test_choice_needs_2_to_26_options():
     with pytest.raises(ValueError):
         TChoiceQuestion("q", {"a": "only one"})
     with pytest.raises(ValueError):
@@ -24,7 +24,7 @@ def test_choice_needs_2_to_20_options():
     TChoiceQuestion("q", {f"o{i}": "x" for i in range(MAX_OPTIONS)})
 
 
-def test_scale_needs_2_to_10_levels():
+def test_scale_needs_2_to_26_levels():
     with pytest.raises(ValueError):
         TScaleQuestion("q", ["one"])
     with pytest.raises(ValueError):
@@ -68,3 +68,7 @@ def test_use_case_requests_enforce_invariants():
 def test_classify_items():
     assert TClassifyRequest({"a": "x", "b": "y"}, input="i").items() == ["i"]
     assert TClassifyRequest({"a": "x", "b": "y"}, inputs=["i", "j"]).items() == ["i", "j"]
+
+
+def test_limits_match_the_system_one_contract():
+    assert (MAX_OPTIONS, MAX_LEVELS) == (26, 26)

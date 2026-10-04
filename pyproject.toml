@@ -1,6 +1,6 @@
 [project]
 name = "dev-double"
-version = "0.1.1"
+version = "0.2.0"
 description = "A local stand-in for System 1 decision models: build routing, guardrails, tool gating, triage, evals, reranking and extraction now, swap the engine later."
 readme = "README.md"
 license = "MIT"

@@ -73,7 +73,12 @@ class DeciderNeedleImpl(IDecider, IReranker, IExtractor):
         return self._agents[key]
 
     async def ask(
-        self, value: TInputValue, question: TQuestion, tracker: Tracker, label: str = ""
+        self,
+        value: TInputValue,
+        question: TQuestion,
+        tracker: Tracker,
+        label: str = "",
+        images: tuple[str, ...] = (),
     ) -> TAnswer:
         labels = question_labels(question)
         r = self._agent(question, labels).complete(prompts.render_input(value))

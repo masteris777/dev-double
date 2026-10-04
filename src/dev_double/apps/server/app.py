@@ -5,22 +5,33 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from ... import __version__
-from ...core.decision.errors import EngineError
+from ...core.decision.errors import EngineError, UnsupportedRequestError
 from ...core.decision.i_decider import IDecider
 from ...core.decision.i_decision_service import IDecisionService
 from ...core.decision.i_engine import IEngine
 from ..composition import build_service
 from ..config import Settings
+from .model_services import ModelServices, model_warning
 from .recorder import install_recorder
+from .systemone_route import (
+    PATH as SYSTEMONE_PATH,
+    SystemOneRoute,
+    error_response,
+    images_unsupported,
+    validation_message,
+)
 from .transport import (
     ClassifyRequest,
     ClassifyResponse,
     DecideRequest,
     DecideResponse,
+    ErrorResponse,
     ExtractRequest,
     ExtractResponse,
     GateRequest,
@@ -29,11 +40,16 @@ from .transport import (
     GuardResponse,
     JudgeRequest,
     JudgeResponse,
+    Meta,
     RerankRequest,
     RerankResponse,
     RouteRequest,
     RouteResponse,
+    SystemOneRequest,
+    SystemOneResponse,
 )
+
+DECIDE_DEPRECATION = "/v1/decide is deprecated and will be removed in 0.3; use /v1/systemone"
 
 
 def create_app(
@@ -48,10 +64,12 @@ def create_app(
     async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         svc = build_service(settings, engine=engine, decider=decider)
         app.state.service = svc
+        injected = engine is not None or decider is not None
+        app.state.models = ModelServices(settings, svc, can_build=not injected)
         try:
             yield
         finally:
-            await svc.aclose()
+            await app.state.models.aclose()  # also closes `svc`
 
     app = FastAPI(
         title="dev-double",
@@ -67,21 +85,80 @@ def create_app(
     async def _engine_error(_: Request, exc: EngineError) -> JSONResponse:
         return JSONResponse(status_code=502, content={"error": "engine_error", "detail": str(exc)})
 
+    @app.exception_handler(UnsupportedRequestError)
+    async def _unsupported_request(_: Request, exc: UnsupportedRequestError) -> JSONResponse:
+        return JSONResponse(status_code=400, content={"error": "unsupported_request", "detail": str(exc)})
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(request: Request, exc: RequestValidationError) -> Response:
+        if request.url.path == SYSTEMONE_PATH:  # Ollama's contract: 400 and {"error": ...}
+            return error_response(400, validation_message(exc))
+        return await request_validation_exception_handler(request, exc)
+
     if settings.record:
         install_recorder(app, settings.record)
 
     def service(request: Request) -> IDecisionService:
         return request.app.state.service
 
+    def models(request: Request) -> ModelServices:
+        return request.app.state.models
+
+    def note_model(meta: Meta, requested: Optional[str]) -> None:
+        """With honor_request_model, say so when the named model couldn't be used."""
+        if settings.honor_request_model:
+            warning = model_warning(requested, meta.model, honor=True)
+            if warning:
+                meta.warnings.append(warning)
+
     @app.get("/health")
     async def health(request: Request) -> dict:
         svc = service(request)
         return {"status": "ok", "engine": svc.name, "model": svc.model}
 
-    @app.post("/v1/decide", response_model=DecideResponse, response_model_exclude_none=True)
-    async def decide(req: DecideRequest, request: Request):  # type: ignore[no-untyped-def]
-        """Generic decision: binary, choice, and scale questions about one input."""
-        return DecideResponse.from_core(await service(request).decide(req.to_core()))
+    @app.post("/v1/decide", response_model=DecideResponse, response_model_exclude_none=True, deprecated=True)
+    async def decide(req: DecideRequest, request: Request, response: Response):  # type: ignore[no-untyped-def]
+        """Deprecated: use /v1/systemone, the same thing with the System One field names.
+
+        Generic decision: binary, choice, and scale questions about one input."""
+        response.headers["Deprecation"] = "true"
+        async with models(request).use(req.model) as svc:
+            out = DecideResponse.from_core(await svc.decide(req.to_core()))
+        note_model(out.meta, req.model)
+        out.meta.warnings.insert(0, DECIDE_DEPRECATION)
+        return out
+
+    systemone_router = APIRouter(route_class=SystemOneRoute)
+
+    @systemone_router.post(
+        "/v1/systemone",
+        response_model=SystemOneResponse,
+        responses={
+            400: {"model": ErrorResponse, "description": "Invalid request."},
+            413: {"model": ErrorResponse, "description": "Body over 64 KiB without images or 32 MiB with."},
+            500: {"model": ErrorResponse, "description": "The model failed to answer."},
+        },
+    )
+    async def systemone(req: SystemOneRequest, request: Request):  # type: ignore[no-untyped-def]
+        """Answer choice, yes/no (noul), and score questions about one shared state, in one call.
+
+        Follows Ollama's /v1/systemone contract, plus a `meta` field."""
+        try:
+            async with models(request).use(req.model) as svc:
+                if req.images and not svc.supports_images:
+                    return error_response(400, images_unsupported(svc))
+                result = await svc.decide(req.to_core())
+        except UnsupportedRequestError as exc:
+            return error_response(400, str(exc))
+        except EngineError as exc:
+            return error_response(500, str(exc))
+        out = SystemOneResponse.from_core(req.model, result)
+        warning = model_warning(req.model, out.meta.model, honor=settings.honor_request_model)
+        if warning:
+            out.meta.warnings.append(warning)
+        return out
+
+    app.include_router(systemone_router)
 
     @app.post("/v1/route", response_model=RouteResponse)
     async def route(req: RouteRequest, request: Request):  # type: ignore[no-untyped-def]
@@ -117,6 +194,9 @@ def create_app(
     @app.post("/v2/rerank", response_model=RerankResponse, response_model_exclude_none=True)
     async def rerank(req: RerankRequest, request: Request):  # type: ignore[no-untyped-def]
         """Order documents by relevance to a query. Cohere-style wire format."""
-        return RerankResponse.from_core(await service(request).rerank(req.to_core()))
+        async with models(request).use(req.model) as svc:
+            out = RerankResponse.from_core(await svc.rerank(req.to_core()))
+        note_model(out.meta, req.model)
+        return out
 
     return app

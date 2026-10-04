@@ -17,7 +17,7 @@ BANNED_IN_CORE = (
     "time", "uuid", "os", "datetime", "random",
     "dev_double.providers", "dev_double.apps",
 )
-ALLOWED_IN_CORE = {"__future__", "dataclasses", "typing", "math", "json", "asyncio", "dev_double"}
+ALLOWED_IN_CORE = {"__future__", "base64", "dataclasses", "typing", "math", "json", "asyncio", "dev_double"}
 
 
 def _module_name(path: Path) -> str:

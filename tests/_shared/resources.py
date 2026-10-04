@@ -10,6 +10,7 @@ import httpx
 
 OLLAMA_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen2.5:7b"
+VISION_MODEL = "qwen2.5vl:7b"
 SYSTEMONE_URL = "http://localhost:8000"
 
 

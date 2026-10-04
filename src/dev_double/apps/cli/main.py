@@ -20,6 +20,11 @@ def _add_engine_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--engine", choices=list(ENGINES), help="Backend engine (default: openai).")
     p.add_argument("--base-url", help="OpenAI-compatible base URL (default: Ollama on localhost).")
     p.add_argument("--model", help="Model name on that server (default: qwen2.5:7b).")
+    p.add_argument(
+        "--vision-model",
+        help="Model for questions about images, on the same server (engine openai), e.g. qwen2.5vl:7b. "
+        "Without it, requests with images are refused.",
+    )
     p.add_argument("--api-key", help="API key for the model server, if it needs one.")
     p.add_argument("--max-concurrency", type=int, help="Parallel model calls (default: 4).")
     p.add_argument(
@@ -29,7 +34,11 @@ def _add_engine_args(p: argparse.ArgumentParser) -> None:
 
 def _settings(args: argparse.Namespace) -> Settings:
     s = Settings.from_env()
-    for name in ("engine", "base_url", "model", "api_key", "max_concurrency", "record", "systemone_url"):
+    names = (
+        "engine", "base_url", "model", "vision_model", "api_key", "max_concurrency", "record", "systemone_url",
+        "honor_request_model",
+    )
+    for name in names:
         value = getattr(args, name, None)
         if value is not None:
             setattr(s, name, value)
@@ -45,8 +54,11 @@ def serve(args: argparse.Namespace) -> int:
     print(f"dev-double {__version__}: engine={settings.engine} model={settings.model}")
     if settings.engine == "openai":
         print(f"  model server: {settings.base_url}")
+        print(f"  vision model: {settings.vision_model or 'none (requests with images are refused)'}")
     if settings.engine == "systemone":
         print(f"  System 1 server: {settings.systemone_url}")
+    if settings.honor_request_model:
+        print("  honoring each request's `model`")
     if settings.record:
         print(f"  recording calls to: {settings.record}")
     uvicorn.run(create_app(settings), host=args.host, port=args.port, log_level="info")
@@ -108,6 +120,13 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8787)
     p_serve.add_argument("--record", help="Append every call to this JSONL file.")
+    p_serve.add_argument(
+        "--honor-request-model",
+        action="store_true",
+        default=None,
+        help="Answer each request with the `model` it names (openai and systemone engines) "
+        "instead of the configured one.",
+    )
     p_serve.set_defaults(func=serve)
 
     p_doc = sub.add_parser("doctor", help="Check that the model server works and returns logprobs.")

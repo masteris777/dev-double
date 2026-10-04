@@ -7,9 +7,17 @@ against the vendor's SDK and switch over; the rest of your harness stays.
 
 from __future__ import annotations
 
+import base64
+import warnings
+from pathlib import Path
 from typing import Any
 
 import httpx
+
+
+def image_base64(path: str | Path) -> str:
+    """An image file (PNG, JPEG, or WebP) as the base64 string ``systemone(images=[...])`` takes."""
+    return base64.b64encode(Path(path).read_bytes()).decode("ascii")
 
 
 class DevDouble:
@@ -30,7 +38,29 @@ class DevDouble:
         response.raise_for_status()
         return response.json()
 
+    def systemone(
+        self,
+        model: str,
+        state: Any,
+        questions: dict[str, dict[str, Any]],
+        images: list[str] | None = None,
+        keep_alive: str | float | None = None,
+    ) -> dict[str, Any]:
+        """Typed questions about one state, in Ollama's /v1/systemone wire format. ``questions``:
+        name -> {"type": "choice"|"noul"|"score", "instructions", "criteria"?}. ``images``: base64
+        PNG, JPEG, or WebP strings (see ``image_base64``) that all the questions are about."""
+        return self._post(
+            "/v1/systemone",
+            {"model": model, "state": state, "questions": questions, "images": images, "keep_alive": keep_alive},
+        )
+
     def decide(self, input: Any, questions: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """Deprecated: use ``systemone``. Removed in 0.3."""
+        warnings.warn(
+            "DevDouble.decide() is deprecated and will be removed in 0.3; use systemone()",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._post("/v1/decide", {"input": input, "questions": questions})
 
     def route(self, input: Any, routes: dict[str, str] | None = None) -> dict[str, Any]:

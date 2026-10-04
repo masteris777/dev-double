@@ -19,6 +19,8 @@ class TLabelQuery:
     input_text: str
     question: str
     descriptions: list[str]
+    # Base64 images the question is about; engines that read them put them before the text.
+    images: tuple[str, ...] = ()
 
 
 @dataclass

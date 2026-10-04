@@ -10,10 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Union
 
-# Probabilities are read from the model's top 20 candidate tokens (the most
-# OpenAI-compatible servers return), so more options than that can't all be seen.
-MAX_OPTIONS = 20
-MAX_LEVELS = 10
+# The System One contract allows 2 to 26 options or levels. An engine that can't
+# score that many refuses the question (see ``UnsupportedRequestError``): the
+# openai engine reads at most 20 candidate tokens, so it stops at 20.
+MAX_OPTIONS = 26
+MAX_LEVELS = 26
 
 
 def check_option_keys(options: dict[str, str]) -> None:

@@ -20,6 +20,15 @@ class IEngine(Protocol):
     @property
     def model(self) -> str: ...
 
+    @property
+    def supports_images(self) -> bool:
+        """Whether a query may carry ``images``."""
+        return False
+
+    def model_for(self, images: bool) -> str:
+        """The model that answers a query with (or without) images, for response meta."""
+        return self.model
+
     async def distribution(self, query: TLabelQuery) -> TLabelResult:
         """Raises EngineError when the model can't be reached or answers unusably."""
         ...

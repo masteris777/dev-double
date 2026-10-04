@@ -1,13 +1,15 @@
 import json
 import math
+from dataclasses import replace
 
 import httpx
 import pytest
-from _shared.resources import OLLAMA_MODEL, OLLAMA_URL, has_ollama_model
+from _shared import images
+from _shared.resources import OLLAMA_MODEL, OLLAMA_URL, VISION_MODEL, has_ollama_model
 from _shared.timing import timed
 
 from dev_double.core.decision import prompts
-from dev_double.core.decision.errors import EngineError
+from dev_double.core.decision.errors import EngineError, UnsupportedRequestError
 from dev_double.core.decision.t_label_query import TLabelQuery
 from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
 from dev_double.providers.openai.decision.engine_openai_impl import EngineOpenAIImpl
@@ -112,10 +114,32 @@ async def test_api_key_is_sent_as_bearer_token():
     assert seen[0].headers["authorization"] == "Bearer k"
 
 
+async def test_more_than_20_options_is_a_client_error_not_a_wrong_answer():
+    engine, seen = engine_returning(completion(None, "o0"))
+    labels = [f"option{i}" for i in range(26)]
+    with pytest.raises(UnsupportedRequestError, match="at most 20 options; got 26"):
+        await engine.distribution(query(labels))
+    assert seen == []  # refused before calling the model
+    await engine.distribution(query(labels[:20]))  # 20 is the limit
+    assert len(seen) == 1
+
+
+async def test_numeric_options_where_one_starts_another_are_refused():
+    engine, seen = engine_returning(completion(None, "1"))
+    with pytest.raises(UnsupportedRequestError, match="'1' and '10'"):
+        await engine.distribution(query([str(i) for i in range(12)]))
+    assert seen == []
+    await engine.distribution(query([str(i) for i in range(10)]))  # single digits are fine
+    assert len(seen) == 1
+
+
 # ------------------------------------------------------------------ integration
 
 ollama = pytest.mark.skipif(
     not has_ollama_model(), reason=f"no Ollama at {OLLAMA_URL} with {OLLAMA_MODEL}"
+)
+vision = pytest.mark.skipif(
+    not has_ollama_model(VISION_MODEL), reason=f"no Ollama at {OLLAMA_URL} with {VISION_MODEL}"
 )
 
 
@@ -142,3 +166,107 @@ async def test_ollama_answers_with_calibrated_labels():
     assert sum(pick.probabilities.values()) == pytest.approx(1.0)
     assert max(pick.probabilities, key=pick.probabilities.__getitem__) == "rebooking"
     assert yes.warnings == [] and yes.usage.input_tokens > 0
+
+
+# ------------------------------------------------------------------ images
+
+
+def image_query(*imgs: str) -> TLabelQuery:
+    return TLabelQuery(
+        system="s", user="the question", labels=["red", "blue"], input_text="x", question="q",
+        descriptions=["", ""], images=imgs,
+    )
+
+
+RED_ANSWER = completion(
+    [{"token": "red", "logprob": lp(0.9), "top_logprobs": [{"token": "red", "logprob": lp(0.9)}, {"token": "blue", "logprob": lp(0.1)}]}],
+    "red",
+)
+
+
+def vision_engine(payload: dict = RED_ANSWER, vision_model: str | None = "seer") -> tuple[EngineOpenAIImpl, list]:
+    seen: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json=payload)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    return EngineOpenAIImpl("http://model/v1", "tiny", client=client, vision_model=vision_model), seen
+
+
+async def test_images_go_first_in_the_user_content_to_the_vision_model():
+    engine, seen = vision_engine()
+    result = await engine.distribution(image_query(images.PNG, images.JPEG, images.WEBP))
+    assert result.probabilities == pytest.approx({"red": 0.9, "blue": 0.1})
+    body = seen[0]
+    assert body["model"] == "seer"
+    assert body["messages"][0] == {"role": "system", "content": "s"}
+    assert body["messages"][1] == {
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{images.PNG}"}},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{images.JPEG}"}},
+            {"type": "image_url", "image_url": {"url": f"data:image/webp;base64,{images.WEBP}"}},
+            {"type": "text", "text": "the question"},
+        ],
+    }
+    assert body["logprobs"] is True and body["top_logprobs"] == 20
+
+
+async def test_questions_about_the_same_image_share_a_prompt_prefix():
+    engine, seen = vision_engine()
+    await engine.distribution(image_query(images.PNG))
+    other = image_query(images.PNG)
+    other.user = "a different question"
+    await engine.distribution(other)
+    first, second = ([m["messages"][0], m["messages"][1]["content"][0]] for m in seen)
+    assert first == second
+
+
+async def test_without_images_the_text_model_gets_a_plain_string():
+    engine, seen = vision_engine()
+    await engine.distribution(image_query())
+    assert seen[0]["model"] == "tiny"
+    assert seen[0]["messages"][1] == {"role": "user", "content": "the question"}
+
+
+async def test_images_without_a_vision_model_fail_clearly_and_call_nothing():
+    engine, seen = vision_engine(vision_model=None)
+    with pytest.raises(UnsupportedRequestError, match="--vision-model"):
+        await engine.distribution(image_query(images.PNG))
+    assert seen == []
+
+
+async def test_an_unrecognised_image_is_refused_before_the_call():
+    engine, seen = vision_engine()
+    with pytest.raises(UnsupportedRequestError, match="PNG, JPEG, or WebP"):
+        await engine.distribution(image_query("aGVsbG8="))
+    assert seen == []
+
+
+def test_vision_support_and_the_model_that_answers():
+    plain, _ = vision_engine(vision_model=None)
+    seer, _ = vision_engine()
+    assert (plain.supports_images, seer.supports_images) == (False, True)
+    assert [plain.model_for(False), plain.model_for(True)] == ["tiny", "tiny"]
+    assert [seer.model_for(False), seer.model_for(True)] == ["tiny", "seer"]
+    assert seer.model == "tiny"
+
+
+@vision
+async def test_ollama_reads_a_solid_red_image():
+    engine = EngineOpenAIImpl(f"{OLLAMA_URL}/v1", OLLAMA_MODEL, vision_model=VISION_MODEL)
+    q = TChoiceQuestion(
+        "What colour is the image?",
+        {"red": "The image is red.", "blue": "The image is blue.", "green": "The image is green."},
+    )
+    try:
+        result = await timed(
+            f"ollama {VISION_MODEL} image choice",
+            lambda: engine.distribution(replace(prompts.choice("(see the image)", q), images=(images.RED_PNG,))),
+        )
+    finally:
+        await engine.aclose()
+    assert max(result.probabilities, key=result.probabilities.__getitem__) == "red"
+    assert result.usage.input_tokens > 0

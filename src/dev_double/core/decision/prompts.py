@@ -82,11 +82,12 @@ def choice(input_text: str, q: TChoiceQuestion) -> TLabelQuery:
 
 def scale(input_text: str, q: TScaleQuestion) -> TLabelQuery:
     digits = [str(i) for i in range(len(q.levels))]
+    word = "digit" if len(digits) <= 10 else "number"
     level_lines = [f"{d}: {text}" for d, text in zip(digits, q.levels)]
     body = (
         f"Question: {q.question}\n\nLevels (lowest first):\n"
         + "\n".join(level_lines)
-        + f"\n\nReply with exactly one digit: {', '.join(digits)}."
+        + f"\n\nReply with exactly one {word}: {', '.join(digits)}."
     )
     return TLabelQuery(
         system=SYSTEM,

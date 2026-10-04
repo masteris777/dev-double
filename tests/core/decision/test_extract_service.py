@@ -5,6 +5,7 @@ import pytest
 from dev_double.core.decision.decider_basic_impl import DeciderBasicImpl
 from dev_double.core.decision.decision_service_basic_impl import DecisionServiceBasicImpl
 from dev_double.core.decision.extract_questions import boolean_question, enum_question
+from dev_double.core.decision.i_decider import IDecider
 from dev_double.core.decision.t_answer import TBinaryAnswer, TChoiceAnswer
 from dev_double.core.decision.t_extract import TExtractField, TExtractRequest, TFieldValue
 from dev_double.core.decision.t_question import TBinaryQuestion, TChoiceQuestion
@@ -53,12 +54,12 @@ async def test_extract_with_the_mock_engine():
     assert r.meta.usage.input_tokens > 0
 
 
-class QuestionsOnly:
+class QuestionsOnly(IDecider):
     """A decider with no text generation (like a System 1 model)."""
 
     name, model = "q", "q1"
 
-    async def ask(self, value, question, tracker, label=""):
+    async def ask(self, value, question, tracker, label="", images=()):
         if isinstance(question, TBinaryQuestion):
             return TBinaryAnswer(value=False, probability=0.1, confidence=0.8)
         return TChoiceAnswer(value="EUR", probabilities={"EUR": 0.97, "USD": 0.02, "GBP": 0.01}, confidence=0.955)

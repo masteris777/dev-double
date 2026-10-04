@@ -14,6 +14,7 @@ from .t_question import TQuestion
 class TDecideRequest:
     input: TInputValue
     questions: dict[str, TQuestion]
+    images: tuple[str, ...] = ()  # base64 PNG, JPEG, or WebP, shared by all questions
 
     def __post_init__(self) -> None:
         if not self.questions:

@@ -10,7 +10,7 @@ from .confidence import DIGITS, confidence
 from .decider_basic_impl import DeciderBasicImpl
 from .decision_service_basic_impl import DecisionServiceBasicImpl
 from .defaults import DEFAULT_OUTCOMES, DEFAULT_POLICIES, DEFAULT_ROUTES, DEFAULT_RUBRIC
-from .errors import EngineError
+from .errors import EngineError, UnsupportedRequestError
 from .i_clock import IClock
 from .i_decider import IDecider
 from .i_decision_service import IDecisionService
@@ -47,7 +47,7 @@ from .tracker import Tracker
 __all__ = [
     "DEFAULT_OUTCOMES", "DEFAULT_POLICIES", "DEFAULT_ROUTES", "DEFAULT_RUBRIC", "DIGITS",
     "MAX_FIELDS", "MAX_LEVELS", "MAX_OPTIONS",
-    "DeciderBasicImpl", "DecisionServiceBasicImpl", "EngineError",
+    "DeciderBasicImpl", "DecisionServiceBasicImpl", "EngineError", "UnsupportedRequestError",
     "IClock", "IDecider", "IDecisionService", "IEngine", "IExtractor",
     "IGenerator", "IIdProvider", "IRecordReader", "IReranker",
     "TExtractField", "TExtractRequest", "TExtractResponse", "TFieldValue",

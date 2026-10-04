@@ -24,9 +24,18 @@ from .t_input import TInputValue
 from .tracker import Tracker
 
 
-async def _ask(decider: IDecider, value: TInputValue, name: str, field: TExtractField, t: Tracker) -> TFieldValue:
-    question = enum_question(name, field) if field.type == "enum" else boolean_question(name, field)
-    return value_from_answer(await decider.ask(value, question, t, label=name))
+async def _ask_scored(
+    decider: IDecider, value: TInputValue, fields: dict[str, TExtractField], t: Tracker
+) -> dict[str, TFieldValue]:
+    """Enum and boolean fields as questions about the same input, asked together."""
+    if not fields:
+        return {}
+    questions = {
+        name: enum_question(name, f) if f.type == "enum" else boolean_question(name, f)
+        for name, f in fields.items()
+    }
+    answers = await decider.ask_many(value, questions, t)
+    return {name: value_from_answer(a) for name, a in answers.items()}
 
 
 async def _read_text(
@@ -45,9 +54,9 @@ async def read_fields(decider: IDecider, req: TExtractRequest, t: Tracker) -> di
         return {name: got.get(name, EMPTY) for name in req.fields}
     text = {name: f for name, f in req.fields.items() if f.type in TEXT_TYPES}
     scored = {name: f for name, f in req.fields.items() if f.type not in TEXT_TYPES}
-    record, *answers = await asyncio.gather(
+    record, answers = await asyncio.gather(
         _read_text(decider, req.input, text, t),
-        *(_ask(decider, req.input, name, f, t) for name, f in scored.items()),
+        _ask_scored(decider, req.input, scored, t),
     )
-    got = {**record, **dict(zip(scored, answers))}
+    got = {**record, **answers}
     return {name: got.get(name, EMPTY) for name in req.fields}

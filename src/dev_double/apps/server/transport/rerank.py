@@ -20,7 +20,7 @@ class RerankRequest(BaseModel):
     documents: list[Union[str, RerankDocument]] = Field(min_length=1)
     top_n: Optional[int] = Field(None, ge=1)
     return_documents: bool = False
-    model: Optional[str] = Field(None, description="Ignored; the server's configured model is used.")
+    model: Optional[str] = Field(None, description="Ignored; the server's configured model is used (unless it runs with --honor-request-model).")
 
     def texts(self) -> list[str]:
         return [d if isinstance(d, str) else d.text for d in self.documents]

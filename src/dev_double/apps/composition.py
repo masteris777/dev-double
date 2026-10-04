@@ -36,6 +36,7 @@ def build_engine(settings: Settings) -> IEngine:
             model=settings.model,
             api_key=settings.api_key,
             timeout=settings.timeout,
+            vision_model=settings.vision_model,
         )
     raise _unknown(settings.engine)
 
@@ -50,6 +51,7 @@ def build_decider(settings: Settings, engine: Optional[IEngine] = None) -> IDeci
             "systemone",
             settings.systemone_url,
             settings.api_key,
+            model=settings.model,
             max_concurrency=settings.max_concurrency,
             timeout=settings.timeout,
         )

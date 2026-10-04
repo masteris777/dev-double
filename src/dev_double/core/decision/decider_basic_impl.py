@@ -8,6 +8,7 @@ fields are left empty with a warning."""
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 
 from . import prompts
 from .answer_shaping import shape_answer
@@ -37,10 +38,22 @@ class DeciderBasicImpl(IDecider, IRecordReader):
     def model(self) -> str:
         return self.engine.model
 
+    @property
+    def supports_images(self) -> bool:
+        return self.engine.supports_images
+
+    def model_for(self, images: bool) -> str:
+        return self.engine.model_for(images)
+
     async def ask(
-        self, value: TInputValue, question: TQuestion, tracker: Tracker, label: str = ""
+        self,
+        value: TInputValue,
+        question: TQuestion,
+        tracker: Tracker,
+        label: str = "",
+        images: tuple[str, ...] = (),
     ) -> TAnswer:
-        query = prompts.query_for(prompts.render_input(value), question)
+        query = replace(prompts.query_for(prompts.render_input(value), question), images=images)
         async with self._limit:
             result = await self.engine.distribution(query)
         tracker.usage.add(result.usage)

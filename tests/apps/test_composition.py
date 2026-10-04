@@ -20,6 +20,24 @@ def test_settings_from_env(monkeypatch):
     assert Settings().systemone_url == "http://localhost:8000"
 
 
+def test_vision_model_setting(monkeypatch):
+    monkeypatch.delenv("DEV_DOUBLE_VISION_MODEL", raising=False)
+    assert Settings.from_env().vision_model is None
+    monkeypatch.setenv("DEV_DOUBLE_VISION_MODEL", "qwen2.5vl:7b")
+    assert Settings.from_env().vision_model == "qwen2.5vl:7b"
+
+
+async def test_the_vision_model_reaches_the_openai_engine():
+    plain = build_engine(Settings(engine="openai", model="text"))
+    seeing = build_engine(Settings(engine="openai", model="text", vision_model="seer"))
+    assert (plain.supports_images, seeing.supports_images) == (False, True)
+    assert seeing.model_for(True) == "seer" and seeing.model == "text"
+    assert build_service(Settings(engine="openai", vision_model="seer")).supports_images is True
+    assert build_service(Settings(engine="mock")).supports_images is False
+    await plain.aclose()
+    await seeing.aclose()
+
+
 async def test_builds_each_engine():
     assert isinstance(build_engine(Settings(engine="mock")), EngineMockImpl)
     openai = build_engine(Settings(engine="openai", model="m"))
@@ -29,8 +47,8 @@ async def test_builds_each_engine():
     d = build_decider(Settings(engine="mock"))
     assert isinstance(d, DeciderBasicImpl) and d.name == "mock"
 
-    s1 = build_decider(Settings(engine="systemone", systemone_url="http://s1"))
-    assert isinstance(s1, DeciderSystemOneImpl) and s1.name == "systemone"
+    s1 = build_decider(Settings(engine="systemone", systemone_url="http://s1", model="nimble"))
+    assert isinstance(s1, DeciderSystemOneImpl) and s1.name == "systemone" and s1.model == "nimble"
     await s1.aclose()
 
     svc = build_service(Settings(engine="openai"), engine=EngineMockImpl())

@@ -56,14 +56,15 @@ with DevDouble() as sd:
     )
 
     show(
-        "decide (real-time control)",
-        sd.decide(
+        "systemone (real-time control)",
+        sd.systemone(
+            "dev-double",
             {"hp": 12, "enemy_distance_m": 3, "ammo": 0, "cover_nearby": True},
             {
                 "action": {
                     "type": "choice",
-                    "question": "What should the game bot do right now?",
-                    "options": {
+                    "instructions": "What should the game bot do right now?",
+                    "criteria": {
                         "attack": "Fight the enemy.",
                         "take_cover": "Move to nearby cover.",
                         "reload": "Reload the weapon.",
@@ -71,9 +72,9 @@ with DevDouble() as sd:
                     },
                 },
                 "danger": {
-                    "type": "scale",
-                    "question": "How dangerous is the situation?",
-                    "levels": ["Safe.", "Some risk.", "Serious danger.", "About to die."],
+                    "type": "score",
+                    "instructions": "How dangerous is the situation?",
+                    "criteria": ["Safe.", "Some risk.", "Serious danger.", "About to die."],
                 },
             },
         ),
